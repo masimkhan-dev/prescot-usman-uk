@@ -371,73 +371,50 @@ function HomePage() {
       </div>
 
       <section className="section-pad bg-white">
-        <div className="container-page">
-          <div className="group relative overflow-hidden rounded-2xl border border-[#E2DAD0] bg-[#FAF7F2] shadow-sm transition duration-500">
-            {/* Desktop wide banner layout */}
-            <div className="relative hidden min-h-[440px] lg:grid lg:grid-cols-12 lg:items-center">
-              <div className="z-10 p-10 lg:col-span-6 lg:p-14 xl:p-16">
-                <p className="eyebrow">Phones & Accessories</p>
-                <h2 className="mt-4 text-4xl leading-tight text-[#171717] xl:text-5xl">
-                  Devices for work, play and everyday life.
-                </h2>
-                <p className="mt-5 max-w-lg text-base leading-7 text-[#625B55]">
-                  Explore phones, tablets, audio and technology accessories available in store or by
-                  enquiry.
-                </p>
-                <Link
-                  to="/products"
-                  className="btn-primary mt-8 inline-flex min-h-12 items-center gap-2"
-                >
-                  Explore Products <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="absolute inset-y-0 right-0 w-3/4 overflow-hidden">
-                <img
-                  src={SITE_MEDIA.productsBanner.src}
-                  alt={SITE_MEDIA.productsBanner.alt}
-                  width={SITE_MEDIA.productsBanner.width}
-                  height={SITE_MEDIA.productsBanner.height}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover object-right transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
-                />
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-[#FAF7F2] via-[#FAF7F2]/80 to-transparent"
-                  aria-hidden="true"
-                />
-              </div>
-            </div>
-
-            {/* Mobile / Tablet layout */}
-            <div className="flex flex-col lg:hidden">
-              <div className="p-7 sm:p-10">
-                <p className="eyebrow">Phones & Accessories</p>
-                <h2 className="mt-3 text-3xl leading-tight text-[#171717] sm:text-4xl">
-                  Devices for work, play and everyday life.
-                </h2>
-                <p className="mt-4 text-base leading-7 text-[#625B55]">
-                  Explore phones, tablets, audio and technology accessories available in store or by
-                  enquiry.
-                </p>
-                <Link
-                  to="/products"
-                  className="btn-primary mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 sm:w-auto"
-                >
-                  Explore Products <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="overflow-hidden border-t border-[#E2DAD0]">
-                <img
-                  src={SITE_MEDIA.productsBanner.src}
-                  alt={SITE_MEDIA.productsBanner.alt}
-                  width={SITE_MEDIA.productsBanner.width}
-                  height={SITE_MEDIA.productsBanner.height}
-                  loading="lazy"
-                  decoding="async"
-                  className="aspect-[16/9] w-full object-cover object-[70%_center] sm:aspect-[21/9]"
-                />
-              </div>
-            </div>
+        <div className="container-page grid items-center gap-12 lg:grid-cols-[.85fr_1.15fr] lg:gap-20">
+          <div>
+            <p className="eyebrow">Technology retail</p>
+            <h2 className="mt-4 text-4xl leading-tight md:text-5xl lg:text-6xl">
+              Devices for work, play and everyday life.
+            </h2>
+            <p className="mt-6 text-base leading-7 text-[#625B55]">
+              Explore phones, laptops, gaming technology and accessories. Contact the team to check
+              current availability or request a specific device.
+            </p>
+            <Link
+              to="/products"
+              className="btn-primary mt-8 inline-flex min-h-12 items-center gap-2"
+            >
+              Browse All Products <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {products.map((item, index) => (
+              <Link
+                key={item.title}
+                to="/products"
+                className={`group overflow-hidden rounded-2xl border border-[#E7DED5] bg-[#FAF7F2] p-6 transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "sm:col-span-2" : ""}`}
+              >
+                <div className={`overflow-hidden rounded-xl bg-white ${index === 0 ? "h-64 sm:h-72" : "h-48"}`}>
+                  <img
+                    src={item.image}
+                    alt=""
+                    width={900}
+                    height={700}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition duration-500 [@media(hover:hover)]:group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="mt-5 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="card-title text-2xl text-[#171717]">{item.title}</h3>
+                    <p className="mt-1 text-sm text-[#625B55]">{item.text}</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-[#FF493D] transition-transform group-hover:translate-x-1" />
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

@@ -142,7 +142,5 @@ export const LEGAL_LINKS = [
   { to: "/repair-terms", label: "Repair Terms" },
   { to: "/warranty", label: "Warranty Policy" },
   { to: "/refunds", label: "Returns & Refund Policy" },
-  { to: "/cookies", label: "Cookie Policy" },
-  { to: "/accessibility", label: "Accessibility Statement" },
 ] as const;
 

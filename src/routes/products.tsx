@@ -10,9 +10,11 @@ import {
   ShieldCheck,
   HardDrive,
   BatteryCharging,
+  ArrowRight,
 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
 import { BUSINESS } from "@/lib/business";
+import { SITE_MEDIA } from "@/lib/site-content";
 
 export const Route = createFileRoute("/products")({
   head: () => ({
@@ -33,7 +35,10 @@ export const Route = createFileRoute("/products")({
       { property: "og:url", content: "/products" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "/products" }],
+    links: [
+      { rel: "canonical", href: "/products" },
+      { rel: "preload", as: "image", href: SITE_MEDIA.productsBanner.src },
+    ],
   }),
   component: ProductsPage,
 });
@@ -151,20 +156,67 @@ function ProductsPage() {
 
   return (
     <SiteLayout>
-      <section className="border-b border-[#E7DED5] bg-[#FAF7F2]">
-        <div className="container-page py-16 md:py-20">
-          <span className="eyebrow">Buy, Sell & Trade-in</span>
-          <h1 className="mt-3 max-w-3xl text-4xl font-semibold leading-tight text-[#171717] md:text-6xl">
-            Phones, laptops & consoles — tested & certified in Prescot.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-[#625B55]">
-            Visit our 57 Eccleston Street shop or message us on WhatsApp for live stock
-            availability, condition details and current warranty terms.
-          </p>
+      <section className="section-pad bg-[#FAF7F2] py-6 md:py-10">
+        <div className="container-page">
+          <div className="group relative overflow-hidden rounded-2xl border border-[#E2DAD0] bg-[#141414] shadow-xl transition duration-500">
+            {/* Background Image Layer */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img
+                src={SITE_MEDIA.productsBanner.src}
+                alt={SITE_MEDIA.productsBanner.alt}
+                width={SITE_MEDIA.productsBanner.width}
+                height={SITE_MEDIA.productsBanner.height}
+                fetchPriority="high"
+                className="h-full w-full object-cover object-[70%_center] transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
+              />
+              {/* Controlled dark/ink gradient overlay so text meets accessible contrast */}
+              <div
+                className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-transparent lg:bg-gradient-to-r lg:from-[#141414] lg:via-[#141414]/90 lg:to-transparent lg:w-[60%]"
+                aria-hidden="true"
+              />
+            </div>
+
+            {/* Content Overlay */}
+            <div className="relative z-10 flex min-h-[480px] flex-col justify-end p-7 sm:p-10 lg:min-h-[520px] lg:justify-center lg:p-16 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700">
+              <div className="max-w-2xl text-left">
+                <p className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]">
+                  Phones & accessories
+                </p>
+                <h1 className="hero-title mt-4 text-3xl text-white sm:text-5xl lg:text-6xl">
+                  Everyday tech. Ready when you are.
+                </h1>
+                <p className="mt-5 max-w-xl text-base leading-7 text-white/80 md:text-lg">
+                  Explore phones, earbuds, headphones, chargers, cases and gaming accessories
+                  available from our Prescot store.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      document.getElementById("catalogue")?.scrollIntoView({ behavior: "smooth" })
+                    }
+                    className="btn-primary min-h-12 w-full justify-center text-base sm:w-auto"
+                  >
+                    Browse products <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <a
+                    href={BUSINESS.whatsappMessage(
+                      "Hi Prescot Mobiles, I'd like to ask what products are available.",
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-whatsapp min-h-12 w-full justify-center text-base sm:w-auto"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Ask what’s available
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="section-pad bg-white">
+      <section className="section-pad bg-white" id="catalogue">
         <div className="container-page">
           <div className="flex flex-wrap gap-2 border-b border-[#E7DED5] pb-6">
             {cats.map((c) => (

@@ -66,21 +66,27 @@ export function Header() {
 
   return (
     <>
-      <div className="hidden min-h-9 items-center justify-between bg-[#171717] px-6 text-xs font-semibold text-white sm:flex">
-        <span>Mobile, laptop, tablet & gaming-console support</span>
-        <a
-          href={BUSINESS.mapsDirections}
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-[#FF493D]"
-        >
-          57 Eccleston Street, Prescot · Get directions
-        </a>
-      </div>
       <header
-        className={`sticky top-0 z-40 border-b transition-all duration-200 ${scrolled ? "border-[#DDD5CB] bg-[#FAF7F2]/95 shadow-sm backdrop-blur-xl" : "border-[#ECE8E1] bg-[#FAF7F2]"}`}
+        className={`sticky top-0 z-40 border-b transition-all duration-200 ${
+          scrolled ? "border-[#DDD5CB] bg-[#FAF7F2]/95 shadow-sm backdrop-blur-xl" : "border-[#ECE8E1] bg-[#FAF7F2]"
+        }`}
       >
-        <div className="container-page flex min-h-[76px] items-center justify-between gap-5 py-2">
+        {/* Sticky Business-Information Bar (Desktop & Mobile) */}
+        <div className="bg-[#171717] px-4 py-2 text-xs font-semibold text-white sm:px-6">
+          <div className="container-page flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-center sm:text-left !px-0">
+            <span>Mobile, laptop, tablet & gaming-console support</span>
+            <a
+              href={BUSINESS.mapsDirections}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-1 text-[#D8D0C8] hover:text-[#FF493D] transition-colors"
+            >
+              57 Eccleston Street, Prescot L34 5QH · <span className="underline underline-offset-2">Get directions</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="container-page flex min-h-[72px] items-center justify-between gap-5 py-2">
           <Link to="/" className="flex items-center gap-3" aria-label="Prescot Mobiles home">
             <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#E6DED5] bg-white">
               <img src={SITE_MEDIA.logo} alt="" className="h-full w-full object-contain" />
