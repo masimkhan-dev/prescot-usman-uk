@@ -13,8 +13,8 @@ export const BUSINESS = {
   whatsappHref: "https://wa.me/447479385163",
   whatsappMessage: (msg: string) =>
     `https://wa.me/447479385163?text=${encodeURIComponent(msg)}`,
-  email: "usmanaslam48@yahoo.com",
-  emailHref: "mailto:usmanaslam48@yahoo.com",
+  email: "precotmobiles2026@gmail.com",
+  emailHref: "mailto:precotmobiles2026@gmail.com",
   mapsEmbed:
     "https://www.google.com/maps?q=57+Eccleston+Street,+Prescot,+L34+5QH,+UK&output=embed",
   mapsDirections:
