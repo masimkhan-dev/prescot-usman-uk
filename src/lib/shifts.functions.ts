@@ -18,137 +18,74 @@ export const getOpenShift = createServerFn({ method: "GET" })
 
 export const listShifts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((input) =>
+    z
+      .object({
+        page: z.number().int().nonnegative().default(0),
+        limit: z.number().int().positive().max(100).default(30),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const {
+      data: rows,
+      count,
+      error,
+    } = await context.supabase
       .from("shifts")
-      .select("*")
+      .select("*, profiles!shifts_opened_by_fkey(full_name)", { count: "exact" })
       .order("opened_at", { ascending: false })
-      .limit(60);
+      .range(data.page * data.limit, (data.page + 1) * data.limit - 1);
     if (error) throw error;
-    return data || [];
+    return { rows: rows ?? [], total: count ?? 0 };
   });
 
+// openShift — calls the open_shift RPC (prevents double-open with FOR UPDATE SKIP LOCKED)
 export const openShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ opening_float: z.number().min(0) }).parse(input))
+  .inputValidator((input) =>
+    z.object({ opening_float_pence: z.number().int().nonnegative() }).parse(input),
+  )
   .handler(async ({ data, context }) => {
-    const { data: existing } = await context.supabase
-      .from("shifts")
-      .select("id")
-      .eq("status", "open")
-      .maybeSingle();
-    if (existing) throw new Error("A shift is already open. Close it first.");
-
-    const { data: shift, error } = await context.supabase
-      .from("shifts")
-      .insert({ opening_float: data.opening_float, opened_by: context.userId, status: "open" })
-      .select()
-      .single();
-    if (error) throw error;
-    return shift;
+    const { data: result, error } = await context.supabase.rpc("open_shift", {
+      p_opening_float_pence: data.opening_float_pence,
+    });
+    if (error) throw new Error(error.message);
+    return result as { shift_id: string };
   });
 
-/** Live totals for the currently open shift (nothing persisted). */
-export const getShiftSummary = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ shift_id: z.string() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { data: shift, error } = await context.supabase
-      .from("shifts")
-      .select("*")
-      .eq("id", data.shift_id)
-      .single();
-    if (error) throw error;
-
-    const since = shift.opened_at;
-    const until = shift.closed_at || new Date().toISOString();
-
-    const { data: sales } = await context.supabase
-      .from("sales")
-      .select("total, payment_method")
-      .gte("created_at", since)
-      .lte("created_at", until);
-    const { data: returns } = await context.supabase
-      .from("sale_returns")
-      .select("total, refund_method")
-      .gte("created_at", since)
-      .lte("created_at", until);
-    const { data: expenses } = await context.supabase
-      .from("expenses")
-      .select("amount")
-      .gte("created_at", since)
-      .lte("created_at", until);
-    const { data: repairs } = await context.supabase
-      .from("repair_tickets")
-      .select("price, labour_cost, paid, updated_at")
-      .eq("paid", true)
-      .gte("updated_at", since)
-      .lte("updated_at", until);
-
-    const by = (m: string) =>
-      (sales || []).filter((s) => s.payment_method === m).reduce((a, s) => a + Number(s.total || 0), 0);
-
-    const cashSales = by("cash");
-    const cardSales = by("card");
-    const bankSales = by("bank_transfer");
-    const cashRefunds = (returns || [])
-      .filter((r) => r.refund_method === "cash")
-      .reduce((a, r) => a + Number(r.total || 0), 0);
-    const refundsTotal = (returns || []).reduce((a, r) => a + Number(r.total || 0), 0);
-    const expensesTotal = (expenses || []).reduce((a, e) => a + Number(e.amount || 0), 0);
-    const repairsCollected = (repairs || []).reduce((a, r) => a + Number(r.price || 0), 0);
-
-    return {
-      shift,
-      salesCount: (sales || []).length,
-      cashSales,
-      cardSales,
-      bankSales,
-      refundsTotal,
-      cashRefunds,
-      expensesTotal,
-      repairsCollected,
-      expectedCash: Number(shift.opening_float || 0) + cashSales - cashRefunds - expensesTotal,
-    };
-  });
-
+// closeShift — calls the close_shift RPC; server recomputes totals, does NOT accept client totals
 export const closeShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({
-      shift_id: z.string(),
-      counted_cash: z.number(),
-      notes: z.string().optional().nullable(),
-      cash_sales: z.number(),
-      card_sales: z.number(),
-      bank_sales: z.number(),
-      refunds_total: z.number(),
-      expenses_total: z.number(),
-      sales_count: z.number().int(),
-      expected_cash: z.number(),
-    }).parse(input)
+    z
+      .object({
+        shift_id: z.string().uuid(),
+        counted_cash_pence: z.number().int().nonnegative(),
+        notes: z.string().optional().nullable(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: shift, error } = await context.supabase
-      .from("shifts")
-      .update({
-        status: "closed",
-        closed_by: context.userId,
-        closed_at: new Date().toISOString(),
-        counted_cash: data.counted_cash,
-        expected_cash: data.expected_cash,
-        difference: data.counted_cash - data.expected_cash,
-        cash_sales: data.cash_sales,
-        card_sales: data.card_sales,
-        bank_sales: data.bank_sales,
-        refunds_total: data.refunds_total,
-        expenses_total: data.expenses_total,
-        sales_count: data.sales_count,
-        notes: data.notes,
-      })
-      .eq("id", data.shift_id)
-      .select()
+    const { data: result, error } = await context.supabase.rpc("close_shift", {
+      p_shift_id: data.shift_id,
+      p_counted_cash_pence: data.counted_cash_pence,
+      p_notes: data.notes ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return result;
+  });
+
+// getShiftReconciliation — reads from the v_shift_reconciliation view
+export const getShiftReconciliation = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ shift_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("v_shift_reconciliation")
+      .select("*")
+      .eq("shift_id", data.shift_id)
       .single();
     if (error) throw error;
-    return shift;
+    return row;
   });

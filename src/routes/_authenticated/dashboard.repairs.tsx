@@ -5,92 +5,224 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   listRepairs,
   saveRepair,
-  deleteRepair,
+  updateRepairStatus,
+  recordRepairPayment,
   getRepairDetail,
-  markRepairPaid,
+  issueRepairParts,
+  returnRepairParts,
   listTechnicians,
 } from "@/lib/repairs.functions";
 import { listCustomers } from "@/lib/customers.functions";
-import { listProducts } from "@/lib/products.functions";
+import { listAllActiveProducts } from "@/lib/products.functions";
 import { formatGBP } from "@/lib/utils";
-import { Loader2, Plus, Trash2, Eye, X, FileText, CheckCircle2, Clock, Wrench } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Eye,
+  X,
+  FileText,
+  CheckCircle2,
+  Clock,
+  Wrench,
+  Shield,
+  AlertTriangle,
+} from "lucide-react";
 import { InvoiceModal, type InvoiceData } from "@/components/dashboard/Invoice";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/repairs")({
   component: RepairsPage,
 });
 
-type Status = "pending" | "in-progress" | "ready" | "completed" | "cancelled";
-type Method = "walk-in" | "door-to-door" | "mail-in";
+type RepairStatus =
+  "pending" | "assessed" | "in_progress" | "quality_check" | "ready" | "completed" | "cancelled";
+type RepairMethod = "walk-in" | "door-to-door" | "mail-in";
 
 const emptyRepair = {
   customer_id: "",
   device: "",
   brand: "",
+  model: "",
+  imei: "",
+  serial_number: "",
   issue: "",
-  status: "pending" as Status,
-  method: "walk-in" as Method,
-  price: 0,
-  labour_cost: 0,
+  method: "walk-in" as RepairMethod,
+  labourPounds: "",
+  totalPounds: "",
   technician_id: "",
   notes: "",
 };
 
 function RepairsPage() {
   const queryClient = useQueryClient();
-  const { data: repairs, isLoading } = useQuery({ queryKey: ["repairs"], queryFn: () => listRepairs() });
-  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => listCustomers() });
-  const { data: technicians } = useQuery({ queryKey: ["technicians"], queryFn: () => listTechnicians() });
+  const listFn = useServerFn(listRepairs);
   const saveFn = useServerFn(saveRepair);
-  const deleteFn = useServerFn(deleteRepair);
+  const updateStatusFn = useServerFn(updateRepairStatus);
+  const recordPaymentFn = useServerFn(recordRepairPayment);
+  const getDetailFn = useServerFn(getRepairDetail);
+  const issuePartsFn = useServerFn(issueRepairParts);
+  const returnPartsFn = useServerFn(returnRepairParts);
+  const listTechsFn = useServerFn(listTechnicians);
+  const listCustsFn = useServerFn(listCustomers);
+  const listProdsFn = useServerFn(listAllActiveProducts);
+
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [page, setPage] = useState(0);
+
+  const { data: repairsData, isLoading } = useQuery({
+    queryKey: ["repairs", statusFilter, searchQuery, page],
+    queryFn: () =>
+      listFn({
+        data: { status: statusFilter || null, search: searchQuery || null, page, limit: 25 },
+      }),
+  });
+
+  const { data: customersData } = useQuery({
+    queryKey: ["customers-dropdown"],
+    queryFn: () => listCustsFn({ data: { page: 0, limit: 100 } }),
+  });
+
+  const { data: technicians } = useQuery({
+    queryKey: ["technicians"],
+    queryFn: () => listTechsFn(),
+  });
+
+  const { data: partsList } = useQuery({
+    queryKey: ["parts-dropdown"],
+    queryFn: () => listProdsFn({ data: {} }),
+  });
 
   const [form, setForm] = useState({ ...emptyRepair });
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"table" | "kanban">("table");
+  const [invoiceModalData, setInvoiceModalData] = useState<InvoiceData | null>(null);
+  const [payModal, setPayModal] = useState<{
+    repairId: string;
+    repNumber: string;
+    totalPence: number;
+    paidPence: number;
+  } | null>(null);
+  const [payAmountPounds, setPayAmountPounds] = useState("");
+  const [payMethod, setPayMethod] = useState<"cash" | "card" | "bank_transfer">("cash");
+  const [paySubmitting, setPaySubmitting] = useState(false);
+  const [issuePartId, setIssuePartId] = useState("");
+  const [issuePartQty, setIssuePartQty] = useState(1);
+  const [issuingPart, setIssuingPart] = useState(false);
+
+  const { data: detailData, isLoading: detailLoading } = useQuery({
+    queryKey: ["repair-detail", detailId],
+    queryFn: () => (detailId ? getDetailFn({ data: { id: detailId } }) : null),
+    enabled: !!detailId,
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await saveFn({
-      data: {
-        ...form,
-        customer_id: form.customer_id || null,
-        brand: form.brand || null,
-        notes: form.notes || null,
-        technician_id: form.technician_id || null,
-        parts: [],
-        paid: false,
-      },
-    });
-    setForm({ ...emptyRepair });
-    queryClient.invalidateQueries({ queryKey: ["repairs"] });
+    const labourPence = Math.round((parseFloat(form.labourPounds) || 0) * 100);
+    const totalPence = Math.round((parseFloat(form.totalPounds) || 0) * 100);
+
+    setFormSubmitting(true);
+    try {
+      const result = await saveFn({
+        data: {
+          customer_id: form.customer_id || null,
+          device: form.device,
+          brand: form.brand || null,
+          model: form.model || null,
+          imei: form.imei || null,
+          serial_number: form.serial_number || null,
+          issue: form.issue,
+          method: form.method,
+          labour_price_pence: labourPence,
+          total_price_pence: totalPence,
+          technician_id: form.technician_id || null,
+          notes: form.notes || null,
+        },
+      });
+
+      toast.success(`Repair ticket #${result.rep_number} created`);
+      setForm({ ...emptyRepair });
+      queryClient.invalidateQueries({ queryKey: ["repairs"] });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create repair ticket");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this repair ticket?")) return;
-    await deleteFn({ data: { id } });
-    queryClient.invalidateQueries({ queryKey: ["repairs"] });
+  async function handleStatusTransition(repairId: string, newStatus: RepairStatus) {
+    try {
+      await updateStatusFn({
+        data: {
+          repair_id: repairId,
+          new_status: newStatus,
+        },
+      });
+      toast.success(`Ticket status updated to ${newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      if (detailId === repairId) {
+        queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Status update failed");
+    }
   }
 
-  async function handleQuickStatusChange(repair: any, newStatus: Status) {
-    await saveFn({
-      data: {
-        id: repair.id,
-        customer_id: repair.customer_id,
-        device: repair.device,
-        brand: repair.brand,
-        issue: repair.issue,
-        status: newStatus,
-        method: repair.method,
-        price: repair.price || 0,
-        labour_cost: repair.labour_cost || 0,
-        paid: repair.paid,
-        technician_id: repair.technician_id,
-        notes: repair.notes,
-        parts: [],
-      },
-    });
-    queryClient.invalidateQueries({ queryKey: ["repairs"] });
+  async function handleRecordPayment() {
+    if (!payModal) return;
+    const amountPence = Math.round(parseFloat(payAmountPounds) * 100);
+    if (isNaN(amountPence) || amountPence <= 0) {
+      toast.error("Please enter a valid positive payment amount");
+      return;
+    }
+
+    setPaySubmitting(true);
+    try {
+      await recordPaymentFn({
+        data: {
+          repair_id: payModal.repairId,
+          idempotency_key: crypto.randomUUID(),
+          amount_pence: amountPence,
+          method: payMethod,
+        },
+      });
+      toast.success("Payment recorded!");
+      setPayModal(null);
+      setPayAmountPounds("");
+      queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      if (detailId === payModal.repairId) {
+        queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Payment recording failed");
+    } finally {
+      setPaySubmitting(false);
+    }
   }
+
+  async function handleIssuePart() {
+    if (!detailId || !issuePartId || issuePartQty < 1) return;
+    setIssuingPart(true);
+    try {
+      await issuePartsFn({
+        data: {
+          repair_id: detailId,
+          parts: [{ product_id: issuePartId, quantity: issuePartQty }],
+        },
+      });
+      toast.success("Part issued to repair ticket");
+      setIssuePartId("");
+      setIssuePartQty(1);
+      queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
+      queryClient.invalidateQueries({ queryKey: ["parts-dropdown"] });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to issue part");
+    } finally {
+      setIssuingPart(false);
+    }
+  }
+
+  const repairs = repairsData?.rows || [];
 
   return (
     <div className="space-y-6">
@@ -98,33 +230,18 @@ function RepairsPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-[#0F172A]">Repair Tickets Management</h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Log walk-in tickets, assign technicians, track repair lifecycle, and issue invoices.
+            Book device repairs, track IMEI & status workflow, issue parts, and collect payments.
           </p>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
-          <button
-            onClick={() => setActiveTab("table")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeTab === "table" ? "bg-white text-[#0F172A] shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Table View
-          </button>
-          <button
-            onClick={() => setActiveTab("kanban")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeTab === "kanban" ? "bg-white text-[#0F172A] shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Kanban Board
-          </button>
         </div>
       </div>
 
-      {/* Ticket Logging Form */}
-      <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1.5">
-          <Wrench className="w-3.5 h-3.5 text-[#E11D48]" /> Log New Repair Ticket
+      {/* New Repair Intake Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3"
+      >
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+          Intake New Device Repair
         </div>
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
           <select
@@ -132,14 +249,17 @@ function RepairsPage() {
             onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
             className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
           >
-            <option value="">Walk-in / No customer account</option>
-            {customers?.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            <option value="">Select Existing Customer (Optional)</option>
+            {customersData?.rows.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.phone ? `(${c.phone})` : ""}
+              </option>
             ))}
           </select>
+
           <input
             type="text"
-            placeholder="Device (e.g. iPhone 14 Pro)"
+            placeholder="Device Name (e.g. iPhone 13 Pro) *"
             required
             value={form.device}
             onChange={(e) => setForm({ ...form, device: e.target.value })}
@@ -152,368 +272,508 @@ function RepairsPage() {
             onChange={(e) => setForm({ ...form, brand: e.target.value })}
             className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
           />
-          <select
-            value={form.method}
-            onChange={(e) => setForm({ ...form, method: e.target.value as Method })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-          >
-            <option value="walk-in">Walk-in Service</option>
-            <option value="door-to-door">Door-to-door Collection</option>
-            <option value="mail-in">Mail-in Delivery</option>
-          </select>
+          <input
+            type="text"
+            placeholder="IMEI Number (15 digits)"
+            value={form.imei}
+            onChange={(e) => setForm({ ...form, imei: e.target.value })}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+          />
 
           <input
             type="text"
-            placeholder="Reported issue / Fault description"
+            placeholder="Reported Fault / Issue *"
             required
             value={form.issue}
             onChange={(e) => setForm({ ...form, issue: e.target.value })}
             className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none sm:col-span-2"
           />
+
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Labour Charge (£)"
+            value={form.labourPounds}
+            onChange={(e) => setForm({ ...form, labourPounds: e.target.value })}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+          />
+
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Estimated Total Quote (£)"
+            value={form.totalPounds}
+            onChange={(e) => setForm({ ...form, totalPounds: e.target.value })}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+          />
+
           <select
             value={form.technician_id}
             onChange={(e) => setForm({ ...form, technician_id: e.target.value })}
             className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
           >
-            <option value="">Assign Technician…</option>
+            <option value="">Assign Technician (Optional)</option>
             {technicians?.map((t) => (
-              <option key={t.user_id} value={t.user_id}>{t.full_name || t.email}</option>
+              <option key={t.user_id} value={t.user_id}>
+                {t.full_name || t.email}
+              </option>
             ))}
           </select>
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Estimated Quote (£)"
-            value={form.price || ""}
-            onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
+
+          <select
+            value={form.method}
+            onChange={(e) => setForm({ ...form, method: e.target.value as RepairMethod })}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+          >
+            <option value="walk-in">Walk-in Store</option>
+            <option value="door-to-door">Door-to-door Collection</option>
+            <option value="mail-in">Mail-in Service</option>
+          </select>
         </div>
 
-        <div className="flex justify-end pt-2">
-          <button type="submit" className="btn-primary !py-2 !px-4 !text-xs">
-            <Plus className="w-3.5 h-3.5" /> Create Ticket
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={formSubmitting}
+            className="btn-primary !py-2 !px-5 !text-xs flex items-center gap-1.5 disabled:opacity-60"
+          >
+            {formSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            Book Repair Ticket
           </button>
         </div>
       </form>
 
+      {/* Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm text-xs">
+        <input
+          type="text"
+          placeholder="Search REP #, device name, or IMEI…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-[#E11D48]"
+        />
+
+        <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
+          {[
+            "",
+            "pending",
+            "assessed",
+            "in_progress",
+            "quality_check",
+            "ready",
+            "completed",
+            "cancelled",
+          ].map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => setStatusFilter(st)}
+              className={`px-2.5 py-1 rounded-xl font-bold transition-all whitespace-nowrap capitalize ${
+                statusFilter === st
+                  ? "bg-[#0F172A] text-white"
+                  : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {st === "" ? "All Tickets" : st.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Repairs Table */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-[#E11D48]" />
         </div>
-      ) : activeTab === "table" ? (
+      ) : (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[10px] border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">Device & Issue</th>
+                  <th className="px-4 py-3">REP Ticket #</th>
+                  <th className="px-4 py-3">Device & Fault</th>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 text-right">Price</th>
+                  <th className="px-4 py-3 text-right">Total Quote</th>
+                  <th className="px-4 py-3 text-right">Paid</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {repairs?.map((r: any) => (
-                  <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-[#0F172A]">
-                      <div>{r.device} {r.brand && <span className="text-slate-400 font-normal">({r.brand})</span>}</div>
-                      <div className="text-[11px] text-slate-500 font-normal truncate max-w-xs">{r.issue}</div>
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-700 font-semibold">
-                      {r.customers?.name || "Walk-in Customer"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <select
-                        value={r.status}
-                        onChange={(e) => handleQuickStatusChange(r, e.target.value as Status)}
-                        className="text-xs font-bold rounded-lg border border-slate-200 px-2 py-1 bg-white outline-none cursor-pointer"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="ready">Ready for Pickup</option>
-                        <option value="completed">Completed / Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${r.paid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                        {r.paid ? "PAID" : "UNPAID"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-extrabold text-[#0F172A] tabular-nums">
-                      {formatGBP(r.price || 0)}
-                    </td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setDetailId(r.id)}
-                        className="text-[#0F172A] hover:text-[#E11D48] mr-3 font-bold text-xs inline-flex items-center gap-1"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Details
-                      </button>
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="text-rose-600 hover:text-rose-800 font-bold text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 inline" />
-                      </button>
+                {repairs.map((r) => {
+                  const isFullyPaid =
+                    r.amount_paid_pence >= r.total_price_pence && r.total_price_pence > 0;
+                  return (
+                    <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900">
+                        {r.rep_number}
+                        {r.warranty_until && (
+                          <div className="text-[9px] text-emerald-700 font-sans font-semibold flex items-center gap-0.5">
+                            <Shield className="w-2.5 h-2.5" /> War: {r.warranty_until}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900">{r.device}</div>
+                        <div className="text-[10px] text-slate-500 max-w-xs truncate">
+                          {r.issue}
+                        </div>
+                        {r.imei && (
+                          <div className="text-[9px] font-mono text-slate-400">IMEI: {r.imei}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-700">
+                        {(r.customers as { name: string } | null)?.name || "Walk-in"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold capitalize ${
+                            r.status === "completed"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : r.status === "cancelled"
+                                ? "bg-rose-100 text-rose-800"
+                                : r.status === "ready"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {r.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold font-mono">
+                        {formatGBP((r.total_price_pence ?? 0) / 100)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        <span
+                          className={
+                            isFullyPaid
+                              ? "font-bold text-emerald-600"
+                              : "text-amber-600 font-semibold"
+                          }
+                        >
+                          {formatGBP((r.amount_paid_pence ?? 0) / 100)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-1">
+                        {!isFullyPaid && r.status !== "cancelled" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPayModal({
+                                repairId: r.id,
+                                repNumber: r.rep_number ?? `REP-${r.id.slice(0, 8).toUpperCase()}`,
+                                totalPence: r.total_price_pence,
+                                paidPence: r.amount_paid_pence,
+                              });
+                              setPayAmountPounds(
+                                ((r.total_price_pence - r.amount_paid_pence) / 100).toFixed(2),
+                              );
+                            }}
+                            className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold"
+                          >
+                            Pay
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDetailId(r.id)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
+                        >
+                          View / Status
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {repairs.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
+                      No repair tickets found.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
-      ) : (
-        /* Kanban View */
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { id: "pending", label: "Pending", bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-200 text-amber-900" },
-            { id: "in-progress", label: "In Progress", bg: "bg-blue-50", border: "border-blue-200", badge: "bg-blue-200 text-blue-900" },
-            { id: "ready", label: "Ready for Pickup", bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-200 text-emerald-900" },
-            { id: "completed", label: "Completed", bg: "bg-slate-100", border: "border-slate-300", badge: "bg-slate-200 text-slate-900" },
-          ].map((col) => {
-            const colRepairs = repairs?.filter((r: any) => r.status === col.id) || [];
-            return (
-              <div key={col.id} className={`rounded-2xl border ${col.border} ${col.bg} p-4 flex flex-col`}>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 mb-3">
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#0F172A]">{col.label}</h3>
-                  <span className={`text-xs font-black px-2 py-0.5 rounded-full ${col.badge}`}>
-                    {colRepairs.length}
-                  </span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-                  {colRepairs.map((r: any) => (
-                    <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-[#E11D48] transition-colors">
-                      <div className="font-bold text-xs text-[#0F172A]">{r.device}</div>
-                      <div className="text-[11px] text-slate-600 mt-1 line-clamp-2">{r.issue}</div>
-                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-[#0F172A] tabular-nums">{formatGBP(r.price || 0)}</span>
-                        <button
-                          onClick={() => setDetailId(r.id)}
-                          className="text-[#E11D48] font-bold hover:underline"
-                        >
-                          Manage →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {colRepairs.length === 0 && (
-                    <div className="text-center text-xs text-slate-400 py-8 italic">No tickets</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       )}
 
-      {detailId && <RepairDetail id={detailId} onClose={() => setDetailId(null)} />}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-900 border-amber-300",
-    "in-progress": "bg-blue-100 text-blue-900 border-blue-300",
-    ready: "bg-emerald-100 text-emerald-900 border-emerald-300",
-    completed: "bg-slate-200 text-slate-900 border-slate-300",
-    cancelled: "bg-rose-100 text-rose-900 border-rose-300",
-  };
-  return (
-    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border ${colors[status] || "bg-slate-100 text-slate-700"}`}>
-      {status.toUpperCase()}
-    </span>
-  );
-}
-
-function RepairDetail({ id, onClose }: { id: string; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const { data: repair, isLoading, refetch } = useQuery({
-    queryKey: ["repair", id],
-    queryFn: () => getRepairDetail({ data: { id } }),
-  });
-  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => listProducts() });
-  const saveFn = useServerFn(saveRepair);
-  const paidFn = useServerFn(markRepairPaid);
-
-  const [selectedPartId, setSelectedPartId] = useState("");
-  const [partQty, setPartQty] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
-
-  const parts = (products || []).filter((p) => (p.type || "product") === "part" && p.stock_quantity > 0);
-
-  async function addPart() {
-    const prod = parts.find((p) => p.id === selectedPartId);
-    if (!prod || !repair) return;
-    setSaving(true);
-    await saveFn({
-      data: {
-        id: repair.id,
-        customer_id: repair.customer_id,
-        device: repair.device,
-        brand: repair.brand,
-        issue: repair.issue,
-        status: repair.status as Status,
-        method: repair.method as Method,
-        price: repair.price || 0,
-        labour_cost: repair.labour_cost || 0,
-        paid: repair.paid,
-        technician_id: repair.technician_id,
-        notes: repair.notes,
-        parts: [{ product_id: prod.id, product_name: prod.name, quantity: partQty, unit_price: prod.sale_price }],
-      },
-    });
-    setSelectedPartId("");
-    setPartQty(1);
-    await refetch();
-    queryClient.invalidateQueries({ queryKey: ["products"] });
-    setSaving(false);
-  }
-
-  async function togglePaid() {
-    if (!repair) return;
-    await paidFn({ data: { id: repair.id, paid: !repair.paid } });
-    await refetch();
-    queryClient.invalidateQueries({ queryKey: ["repairs"] });
-  }
-
-  function openInvoice() {
-    if (!repair) return;
-    const lines = (repair.repair_parts || []).map((p: any) => ({
-      name: p.product_name,
-      quantity: p.quantity,
-      unit_price: p.unit_price,
-      total: p.quantity * p.unit_price,
-    }));
-    setInvoice({
-      kind: "repair",
-      number: repair.id.slice(0, 8).toUpperCase(),
-      date: new Date(repair.created_at).toLocaleString("en-GB"),
-      customer: repair.customers,
-      device: `${repair.device}${repair.brand ? ` (${repair.brand})` : ""}`,
-      issue: repair.issue,
-      lines,
-      labour: repair.labour_cost || 0,
-      total: repair.price || 0,
-      paid: repair.paid,
-      paymentMethod: "cash",
-      warrantyUntil: repair.warranty_until,
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-          <h3 className="font-extrabold text-[#0F172A] text-base">Repair Ticket Details</h3>
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {isLoading || !repair ? (
-          <div className="p-12 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-[#E11D48]" />
-          </div>
-        ) : (
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Device</div>
-                <div className="font-extrabold text-sm text-[#0F172A]">{repair.device} {repair.brand && `(${repair.brand})`}</div>
+      {/* Repair Ticket Detail & Status Control Modal */}
+      {detailId && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-xl w-full max-h-[85vh] overflow-auto space-y-4 shadow-xl">
+            {detailLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-7 h-7 animate-spin text-brand" />
               </div>
+            ) : detailData ? (<>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Customer</div>
-                <div className="font-bold text-slate-800">{repair.customers?.name || "Walk-in Customer"}</div>
+                <h3 className="font-extrabold text-slate-900 text-sm">
+                  Ticket #{detailData.rep_number} — {detailData.device}
+                </h3>
+                <p className="text-[10px] text-slate-500">
+                  Status: <strong className="capitalize">{detailData.status}</strong>
+                </p>
               </div>
-              <div className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Reported Issue</div>
-                <div className="text-slate-800 font-medium mt-0.5">{repair.issue}</div>
-              </div>
-              <div>
-                <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Status</div>
-                <div className="mt-1"><StatusBadge status={repair.status} /></div>
-              </div>
-              <div>
-                <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Warranty Until</div>
-                <div className="font-bold text-slate-800 mt-1">{repair.warranty_until || "12 Months on Parts"}</div>
+              <button
+                type="button"
+                onClick={() => setDetailId(null)}
+                className="p-1 hover:bg-slate-100 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Controlled Status Transitions */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="text-[11px] font-bold text-slate-700">Update Ticket Status:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {detailData.status === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "assessed")}
+                    className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Mark Assessed
+                  </button>
+                )}
+                {detailData.status === "assessed" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "in_progress")}
+                    className="px-2.5 py-1 bg-amber-600 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Start Repair
+                  </button>
+                )}
+                {detailData.status === "in_progress" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "quality_check")}
+                    className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Move to Quality Check
+                  </button>
+                )}
+                {detailData.status === "quality_check" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "ready")}
+                    className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Mark Ready for Pickup
+                  </button>
+                )}
+                {detailData.status === "ready" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "completed")}
+                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Complete & Handover
+                  </button>
+                )}
+                {detailData.status !== "completed" && detailData.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusTransition(detailData.id, "cancelled")}
+                    className="px-2.5 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-bold"
+                  >
+                    Cancel Repair
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200">
-              <h4 className="font-extrabold text-[#0F172A] text-xs uppercase tracking-wider mb-3">Parts Used</h4>
-              {(repair.repair_parts || []).length === 0 ? (
-                <p className="text-xs text-slate-500 italic">No parts attached to ticket.</p>
+            {/* Issued Parts List */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-800">Replacement Parts Issued:</div>
+              {(detailData.repair_parts ?? []).length === 0 ? (
+                <p className="text-[11px] text-slate-400 italic">
+                  No parts issued to this repair ticket yet.
+                </p>
               ) : (
-                <ul className="space-y-2 text-xs mb-4">
-                  {repair.repair_parts.map((p: any) => (
-                    <li key={p.id} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                      <span className="font-semibold text-slate-800">{p.product_name} × {p.quantity}</span>
-                      <span className="font-bold text-[#0F172A] tabular-nums">{formatGBP(p.quantity * p.unit_price)}</span>
+                <ul className="divide-y divide-slate-100 text-xs">
+                  {detailData.repair_parts.map((part) => (
+                    <li key={part.id} className="py-1.5 flex justify-between">
+                      <span>
+                        {part.product_name} × {part.quantity}
+                      </span>
+                      <span className="font-mono">
+                        {formatGBP((part.unit_cost_pence * part.quantity) / 100)}
+                      </span>
                     </li>
                   ))}
                 </ul>
               )}
+            </div>
 
-              <div className="flex gap-2 items-end mt-2">
-                <div className="flex-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Attach Replacement Part
-                  </label>
+            {/* Issue Part Form — only for active repairs */}
+            {detailData.status !== "completed" && detailData.status !== "cancelled" && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                <div className="text-[11px] font-bold text-amber-900">Issue Replacement Part:</div>
+                <div className="flex items-center gap-2 flex-wrap">
                   <select
-                    value={selectedPartId}
-                    onChange={(e) => setSelectedPartId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+                    value={issuePartId}
+                    onChange={(e) => setIssuePartId(e.target.value)}
+                    className="flex-1 min-w-[160px] px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-semibold outline-none focus:border-amber-500"
                   >
-                    <option value="">Select inventory part…</option>
-                    {parts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} · {p.stock_quantity} left · {formatGBP(p.sale_price)}</option>
-                    ))}
+                    <option value="">— Select Part —</option>
+                    {(partsList ?? [])
+                      .filter((p) => p.type === "part")
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} (Stock: {p.stock_quantity})
+                        </option>
+                      ))}
                   </select>
+                  <input
+                    type="number"
+                    min={1}
+                    value={issuePartQty}
+                    onChange={(e) => setIssuePartQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-bold text-center outline-none focus:border-amber-500"
+                    aria-label="Part quantity"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleIssuePart}
+                    disabled={!issuePartId || issuingPart}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {issuingPart ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wrench className="w-3 h-3" />}
+                    Issue
+                  </button>
                 </div>
-                <input
-                  type="number"
-                  min="1"
-                  value={partQty}
-                  onChange={(e) => setPartQty(Math.max(1, Number(e.target.value)))}
-                  className="w-16 rounded-xl border border-slate-300 px-2 py-2 text-xs font-bold text-center"
-                />
-                <button onClick={addPart} disabled={!selectedPartId || saving} className="btn-primary !py-2 !px-3 !text-xs disabled:opacity-50">
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Add Part
-                </button>
+              </div>
+            )}
+
+            {/* Print Repair Receipt Button */}
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setInvoiceModalData({
+                    kind: "repair",
+                    number:
+                      detailData.rep_number ?? `REP-${detailData.id.slice(0, 8).toUpperCase()}`,
+                    date: new Date(detailData.created_at).toLocaleString("en-GB"),
+                    customer: detailData.customers,
+                    lines: (detailData.repair_parts ?? []).map((part) => ({
+                      name: part.product_name,
+                      quantity: part.quantity,
+                      unit_price: part.unit_cost_pence / 100,
+                      total: (part.unit_cost_pence * part.quantity) / 100,
+                    })),
+                    labour: (detailData.labour_price_pence ?? 0) / 100,
+                    total: (detailData.total_price_pence ?? 0) / 100,
+                    paid: detailData.amount_paid_pence >= detailData.total_price_pence,
+                    warrantyUntil: detailData.warranty_until,
+                    device: detailData.device,
+                    issue: detailData.issue,
+                  });
+                }}
+                className="btn-primary !py-1.5 !px-3 !text-xs flex items-center gap-1"
+              >
+                <FileText className="w-3.5 h-3.5" /> Print Repair Invoice
+              </button>
+            </div>
+          </>) : (
+            <div className="py-8 text-center text-slate-400 text-sm">Could not load ticket.</div>
+          )}
+          <button
+            type="button"
+            onClick={() => setDetailId(null)}
+            className="absolute top-4 right-4 p-1 hover:bg-slate-100 rounded-lg"
+            aria-label="Close detail panel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
+      {payModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl">
+            <h3 className="font-extrabold text-slate-900 text-sm">
+              Record Payment — #{payModal.repNumber}
+            </h3>
+            <div className="text-xs text-slate-600 space-y-1">
+              <div>
+                Total Quote: <strong>{formatGBP(payModal.totalPence / 100)}</strong>
+              </div>
+              <div>
+                Already Paid: <strong>{formatGBP(payModal.paidPence / 100)}</strong>
+              </div>
+              <div>
+                Remaining Due:{" "}
+                <strong className="text-rose-600">
+                  {formatGBP((payModal.totalPence - payModal.paidPence) / 100)}
+                </strong>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Total Ticket Price (Parts + Labour {formatGBP(repair.labour_cost || 0)})
-                </div>
-                <div className="text-xl font-black text-[#0F172A] tabular-nums">{formatGBP(repair.price || 0)}</div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={togglePaid}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    repair.paid ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-[#16A34A] text-white"
-                  }`}
-                >
-                  {repair.paid ? "Mark Unpaid" : "Mark Paid"}
-                </button>
-                <button onClick={openInvoice} className="btn-primary !py-2 !px-4 !text-xs">
-                  <FileText className="w-4 h-4" /> Issue Invoice
-                </button>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Amount to Pay (£)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={payAmountPounds}
+                onChange={(e) => setPayAmountPounds(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#E11D48]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+              <select
+                value={payMethod}
+                onChange={(e) => setPayMethod(e.target.value as "cash" | "card" | "bank_transfer")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-[#E11D48] bg-white"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setPayModal(null)}
+                className="btn-outline !py-1.5 !px-3 !text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRecordPayment}
+                disabled={paySubmitting}
+                className="btn-primary !py-1.5 !px-4 !text-xs disabled:opacity-60 flex items-center gap-1.5"
+              >
+                {paySubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                Confirm Payment
+              </button>
             </div>
           </div>
-        )}
-      </div>
-      {invoice && <InvoiceModal invoice={invoice} onClose={() => setInvoice(null)} />}
+        </div>
+      )}
+
+      {/* Invoice Modal */}
+      {invoiceModalData && (
+        <InvoiceModal data={invoiceModalData} onClose={() => setInvoiceModalData(null)} />
+      )}
     </div>
   );
 }

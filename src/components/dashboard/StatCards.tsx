@@ -8,13 +8,13 @@ export function DashboardStatCards({
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="bg-background border border-border rounded-xl p-4 hover:shadow-sm transition-shadow"
+          className="bg-card border border-border rounded-xl p-4 border-l-4 border-l-brand hover:shadow-md transition-all group"
         >
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             {stat.label}
           </div>
-          <div className="mt-2 text-2xl font-bold text-ink">{stat.value}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{stat.change}</div>
+          <div className="mt-2 text-2xl font-extrabold text-ink tabular-nums">{stat.value}</div>
+          <div className="mt-1 text-[11px] text-muted-foreground font-medium">{stat.change}</div>
         </div>
       ))}
     </div>

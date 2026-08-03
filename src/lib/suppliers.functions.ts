@@ -2,8 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+// ---------------------------------------------------------------------------
+// Suppliers
+// ---------------------------------------------------------------------------
 const supplierSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().uuid().optional(),
   name: z.string().min(1),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable().or(z.literal("")),
@@ -16,7 +19,7 @@ export const listSuppliers = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase.from("suppliers").select("*").order("name");
     if (error) throw error;
-    return data || [];
+    return data ?? [];
   });
 
 export const saveSupplier = createServerFn({ method: "POST" })
@@ -27,63 +30,100 @@ export const saveSupplier = createServerFn({ method: "POST" })
     const payload = { ...rest, email: rest.email || null };
     if (id) {
       const { data: updated, error } = await context.supabase
-        .from("suppliers").update(payload).eq("id", id).select().single();
+        .from("suppliers")
+        .update(payload)
+        .eq("id", id)
+        .select()
+        .single();
       if (error) throw error;
       return updated;
     }
     const { data: inserted, error } = await context.supabase
-      .from("suppliers").insert(payload).select().single();
+      .from("suppliers")
+      .insert(payload)
+      .select()
+      .single();
     if (error) throw error;
     return inserted;
   });
 
+// Suppliers are deactivated, not deleted (admin only — enforced by RLS)
 export const deleteSupplier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    // Hard delete only if no related POs — otherwise error is thrown by FK
     const { error } = await context.supabase.from("suppliers").delete().eq("id", data.id);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
+// ---------------------------------------------------------------------------
+// Purchase Orders
+// ---------------------------------------------------------------------------
+const poSchema = z.object({
+  supplier_id: z.string().uuid().nullable(),
+  notes: z.string().optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        product_id: z.string().uuid().nullable(),
+        product_name: z.string().min(1),
+        qty_ordered: z.number().int().positive(),
+        unit_cost_pence: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+
 export const listPurchaseOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((input) =>
+    z
+      .object({
+        status: z
+          .enum(["draft", "ordered", "partial", "received", "cancelled"])
+          .optional()
+          .nullable(),
+        page: z.number().int().nonnegative().default(0),
+        limit: z.number().int().positive().max(100).default(25),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
       .from("purchase_orders")
-      .select("*, suppliers(name), purchase_order_items(*)")
+      .select("*, suppliers(name), purchase_order_items(*)", { count: "exact" })
       .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
-    return data || [];
-  });
+      .range(data.page * data.limit, (data.page + 1) * data.limit - 1);
 
-const poSchema = z.object({
-  supplier_id: z.string().nullable(),
-  reference: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  items: z.array(
-    z.object({
-      product_id: z.string().nullable(),
-      product_name: z.string().min(1),
-      quantity: z.number().int().positive(),
-      unit_cost: z.number().min(0),
-    })
-  ).min(1),
-});
+    if (data.status) q = q.eq("status", data.status);
+
+    const { data: rows, count, error } = await q;
+    if (error) throw error;
+    return { rows: rows ?? [], total: count ?? 0 };
+  });
 
 export const createPurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => poSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const total = data.items.reduce((a, i) => a + i.quantity * i.unit_cost, 0);
+    // Compute total server-side
+    const total_pence = data.items.reduce((sum, i) => sum + i.qty_ordered * i.unit_cost_pence, 0);
+
+    // Assign PO number via RPC
+    const { data: poNum, error: seqErr } = await context.supabase.rpc("next_doc_number", {
+      p_type: "PO",
+    });
+    if (seqErr) throw seqErr;
+
     const { data: po, error } = await context.supabase
       .from("purchase_orders")
       .insert({
         supplier_id: data.supplier_id,
-        reference: data.reference,
+        po_number: poNum,
         notes: data.notes,
-        total,
+        total_pence,
         status: "ordered",
         created_by: context.userId,
       })
@@ -96,10 +136,11 @@ export const createPurchaseOrder = createServerFn({ method: "POST" })
         purchase_order_id: po.id,
         product_id: i.product_id,
         product_name: i.product_name,
-        quantity: i.quantity,
-        unit_cost: i.unit_cost,
-        total: i.quantity * i.unit_cost,
-      }))
+        qty_ordered: i.qty_ordered,
+        qty_received: 0,
+        unit_cost_pence: i.unit_cost_pence,
+        line_total_pence: i.qty_ordered * i.unit_cost_pence,
+      })),
     );
     if (itemsErr) throw itemsErr;
     return po;
@@ -108,55 +149,89 @@ export const createPurchaseOrder = createServerFn({ method: "POST" })
 export const receivePurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ id: z.string(), update_cost_price: z.boolean().default(false) }).parse(input)
+    z
+      .object({
+        po_id: z.string().uuid(),
+        idempotency_key: z.string().min(1),
+        update_cost_price: z.boolean().default(false),
+        notes: z.string().optional().nullable(),
+        items: z
+          .array(
+            z.object({
+              po_item_id: z.string().uuid(),
+              qty_received: z.number().int().positive(),
+            }),
+          )
+          .min(1),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: po, error } = await context.supabase
-      .from("purchase_orders")
-      .select("*, purchase_order_items(*)")
-      .eq("id", data.id)
-      .single();
-    if (error) throw error;
-    if (po.status === "received") throw new Error("This purchase order is already received.");
-
-    for (const item of po.purchase_order_items || []) {
-      if (!item.product_id) continue;
-      const { data: prod } = await context.supabase
-        .from("products")
-        .select("stock_quantity")
-        .eq("id", item.product_id)
-        .single();
-      const update: { stock_quantity: number; cost_price?: number } = {
-        stock_quantity: (prod?.stock_quantity || 0) + item.quantity,
-      };
-      if (data.update_cost_price) update.cost_price = item.unit_cost;
-      await context.supabase.from("products").update(update).eq("id", item.product_id);
-
-      await context.supabase.from("stock_movements").insert({
-        product_id: item.product_id,
-        quantity_change: item.quantity,
-        reason: "purchase",
-        ref_id: po.id,
-        created_by: context.userId,
-      });
-    }
-
-    const { error: uErr } = await context.supabase
-      .from("purchase_orders")
-      .update({ status: "received", received_at: new Date().toISOString() })
-      .eq("id", po.id);
-    if (uErr) throw uErr;
-    return { ok: true };
+    const { data: result, error } = await context.supabase.rpc("receive_purchase_order", {
+      p_po_id: data.po_id,
+      p_idempotency_key: data.idempotency_key,
+      p_update_cost_price: data.update_cost_price,
+      p_notes: data.notes ?? null,
+      p_items: data.items,
+    });
+    if (error) throw new Error(error.message);
+    return result;
   });
 
 export const cancelPurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("purchase_orders")
       .update({ status: "cancelled" })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("status", "draft"); // only cancel drafts
     if (error) throw error;
     return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Supplier Payments
+// ---------------------------------------------------------------------------
+export const recordSupplierPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        supplier_id: z.string().uuid(),
+        amount_pence: z.number().int().positive(),
+        method: z.enum(["cash", "card", "bank_transfer"]).default("bank_transfer"),
+        purchase_order_id: z.string().uuid().optional().nullable(),
+        reference: z.string().optional().nullable(),
+        payment_date: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("record_supplier_payment", {
+      p_supplier_id: data.supplier_id,
+      p_amount_pence: data.amount_pence,
+      p_method: data.method,
+      p_purchase_order_id: data.purchase_order_id ?? null,
+      p_reference: data.reference ?? null,
+      p_payment_date: data.payment_date ?? null,
+      p_notes: data.notes ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return result;
+  });
+
+export const listSupplierPayments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ supplier_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("supplier_payments")
+      .select("*")
+      .eq("supplier_id", data.supplier_id)
+      .order("payment_date", { ascending: false });
+    if (error) throw error;
+    return rows ?? [];
   });

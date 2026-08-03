@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { listSuppliers, saveSupplier, deleteSupplier } from "@/lib/suppliers.functions";
-import { Truck, Plus, Trash2, Edit2, Search, X, Phone, Mail, MapPin } from "lucide-react";
+import { Truck, Plus, Trash2, Edit2, Search, X, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/suppliers")({
@@ -11,9 +12,14 @@ export const Route = createFileRoute("/_authenticated/dashboard/suppliers")({
 
 function DashboardSuppliersPage() {
   const queryClient = useQueryClient();
+  const listFn = useServerFn(listSuppliers);
+  const saveFn = useServerFn(saveSupplier);
+  const deleteFn = useServerFn(deleteSupplier);
+
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     id: "",
@@ -26,7 +32,7 @@ function DashboardSuppliersPage() {
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["suppliers"],
-    queryFn: () => listSuppliers(),
+    queryFn: () => listFn(),
   });
 
   const filtered = suppliers.filter((s: any) =>
@@ -56,20 +62,32 @@ function DashboardSuppliersPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      await saveSupplier({ data: form });
+      await saveFn({
+        data: {
+          id: form.id || undefined,
+          name: form.name,
+          phone: form.phone || null,
+          email: form.email || null,
+          address: form.address || null,
+          notes: form.notes || null,
+        },
+      });
       toast.success(editing ? "Supplier updated" : "Supplier added");
       setModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     } catch (err: any) {
       toast.error(err.message || "Failed to save supplier");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this supplier?")) return;
     try {
-      await deleteSupplier({ data: { id } });
+      await deleteFn({ data: { id } });
       toast.success("Supplier deleted");
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     } catch (err: any) {
@@ -78,79 +96,75 @@ function DashboardSuppliersPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-            <Truck className="w-6 h-6 text-[#E11D48]" /> Supplier Directory
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
+    <div className="db-page">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="db-page-header">
+          <div className="flex items-center gap-2">
+            <Truck className="w-4 h-4 text-brand" />
+            <h1 className="db-page-title">Supplier Directory</h1>
+          </div>
+          <p className="db-page-subtitle">
             Manage parts distributors, wholesale phone suppliers, and component vendors.
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="relative w-64">
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search supplier..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#E11D48] outline-none"
+              className="db-input !pl-9"
             />
           </div>
-          <button onClick={handleOpenAdd} className="btn-primary !py-2 !px-4 !text-xs shrink-0">
-            <Plus className="w-4 h-4" /> Add Supplier
+          <button onClick={handleOpenAdd} className="btn-primary !py-2 !px-4 !text-xs shrink-0 inline-flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add Supplier
           </button>
         </div>
       </div>
 
-      <div className="card-flat !p-0 overflow-hidden">
+      <div className="db-card !p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="db-table">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-extrabold uppercase tracking-wider">
-                <th className="py-3 px-4">Supplier Name</th>
-                <th className="py-3 px-4">Phone</th>
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Address</th>
-                <th className="py-3 px-4">Notes</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+              <tr>
+                <th className="db-th">Supplier Name</th>
+                <th className="db-th">Phone</th>
+                <th className="db-th">Email</th>
+                <th className="db-th">Address</th>
+                <th className="db-th">Notes</th>
+                <th className="db-th text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
-                    Loading suppliers...
-                  </td>
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">Loading suppliers…</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
-                    No suppliers found.
-                  </td>
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">No suppliers found.</td>
                 </tr>
               ) : (
                 filtered.map((s: any) => (
-                  <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-bold text-[#0F172A]">{s.name}</td>
-                    <td className="py-3 px-4 text-slate-600 font-medium">{s.phone || "—"}</td>
-                    <td className="py-3 px-4 text-slate-600 font-medium">{s.email || "—"}</td>
-                    <td className="py-3 px-4 text-slate-600 truncate max-w-xs">{s.address || "—"}</td>
-                    <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate">{s.notes || "—"}</td>
-                    <td className="py-3 px-4 text-right space-x-1">
+                  <tr key={s.id} className="db-tr-hover">
+                    <td className="db-td font-bold text-ink">{s.name}</td>
+                    <td className="db-td text-muted-foreground font-medium">{s.phone || "—"}</td>
+                    <td className="db-td text-muted-foreground font-medium">{s.email || "—"}</td>
+                    <td className="db-td text-muted-foreground truncate max-w-xs">{s.address || "—"}</td>
+                    <td className="db-td text-muted-foreground italic max-w-xs truncate">{s.notes || "—"}</td>
+                    <td className="db-td text-right space-x-1">
                       <button
                         onClick={() => handleOpenEdit(s)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                        className="p-1.5 rounded-lg bg-muted hover:bg-border text-foreground transition-colors"
                         title="Edit Supplier"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(s.id)}
-                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+                        className="p-1.5 rounded-lg bg-destructive/8 hover:bg-destructive/15 text-destructive transition-colors"
                         title="Delete Supplier"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -165,74 +179,43 @@ function DashboardSuppliersPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="font-extrabold text-base text-[#0F172A]">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-5 max-w-md w-full space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h2 className="font-extrabold text-sm text-ink">
                 {editing ? "Edit Supplier" : "Add New Supplier"}
               </h2>
-              <button onClick={() => setModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
-                <X className="w-5 h-5" />
+              <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                <X className="w-4 h-4" />
               </button>
             </div>
             <form onSubmit={handleSave} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Company / Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#E11D48] outline-none"
-                />
+                <label className="block text-xs font-bold text-foreground mb-1">Company / Name *</label>
+                <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="db-input" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Phone</label>
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#E11D48] outline-none"
-                  />
+                  <label className="block text-xs font-bold text-foreground mb-1">Phone</label>
+                  <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="db-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#E11D48] outline-none"
-                  />
+                  <label className="block text-xs font-bold text-foreground mb-1">Email</label>
+                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="db-input" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Address</label>
-                <input
-                  type="text"
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#E11D48] outline-none"
-                />
+                <label className="block text-xs font-bold text-foreground mb-1">Address</label>
+                <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="db-input" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes</label>
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#E11D48] outline-none"
-                />
+                <label className="block text-xs font-bold text-foreground mb-1">Notes</label>
+                <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="db-input" />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary !py-2 !px-4 !text-xs">
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setModalOpen(false)} className="btn-outline !py-2 !px-4 !text-xs">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-60 flex items-center gap-1.5">
+                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Save Supplier
                 </button>
               </div>
