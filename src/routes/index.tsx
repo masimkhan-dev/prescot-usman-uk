@@ -153,27 +153,82 @@ const methods = [
   },
 ];
 
-function HomePage() {
+import { motion, useReducedMotion } from "framer-motion";
+
+export function HomePage() {
   const scrollToQuote = () =>
     document.getElementById("price-checker")?.scrollIntoView({ behavior: "smooth" });
 
+  const shouldReduceMotion = useReducedMotion();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.12,
+        delayChildren: shouldReduceMotion ? 0 : 0.1,
+      },
+    },
+  };
+
+  const lineVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] as const },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 16 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: [0.2, 0.8, 0.2, 1] as const },
+    },
+  };
+
+  const imageRevealVariants = {
+    hidden: {
+      opacity: 0,
+      clipPath: shouldReduceMotion ? "inset(0% 0% 0% 0%)" : "inset(0% 0% 100% 0% round 1rem)",
+      scale: shouldReduceMotion ? 1 : 1.04,
+    },
+    visible: {
+      opacity: 1,
+      clipPath: "inset(0% 0% 0% 0% round 1rem)",
+      scale: 1,
+      transition: { duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as const, delay: 0.15 },
+    },
+  };
+
   return (
     <SiteLayout>
-      <section className="section-pad bg-[#FAF7F2] py-8 lg:py-12">
+      <section className="section-pad bg-[#FAF7F2] py-6 sm:py-8 lg:py-12">
         <div className="container-page">
-          <div className="group relative overflow-hidden rounded-2xl border border-[#E2DAD0] bg-[#141414] shadow-xl transition duration-500">
-            {/* Desktop Hero Layout */}
-            <div className="relative hidden min-h-[580px] lg:flex lg:items-center">
-              {/* Background Image Layer */}
+          <div className="group relative overflow-hidden rounded-2xl border border-[#E2DAD0] bg-[#141414] shadow-xl">
+            {/* Desktop Layout (>= 768px / lg:flex) */}
+            <motion.div
+              className="relative hidden min-h-[580px] lg:flex lg:items-center"
+              initial={shouldReduceMotion ? "visible" : "hidden"}
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={containerVariants}
+            >
+              {/* Desktop Hero Image Container with soft masked clip-path animation */}
               <div className="absolute inset-0 overflow-hidden">
-                <img
-                  src={SITE_MEDIA.repairHero.src}
-                  alt={SITE_MEDIA.repairHero.alt}
-                  width={SITE_MEDIA.repairHero.width}
-                  height={SITE_MEDIA.repairHero.height}
-                  fetchPriority="high"
-                  className="h-full w-full object-cover object-right transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
-                />
+                <motion.div className="h-full w-full" variants={imageRevealVariants}>
+                  <img
+                    src={SITE_MEDIA.repairHero.src}
+                    alt="Technician carefully repairing a mobile device hardware component"
+                    width={SITE_MEDIA.repairHero.width}
+                    height={SITE_MEDIA.repairHero.height}
+                    fetchPriority="high"
+                    className="h-full w-full object-cover object-right transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
+                  />
+                </motion.div>
                 {/* Restrained dark gradient overlay behind copy on the left */}
                 <div
                   className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/90 to-transparent lg:w-[58%]"
@@ -182,19 +237,35 @@ function HomePage() {
               </div>
 
               {/* Foreground Copy & CTAs */}
-              <div className="relative z-10 max-w-2xl p-12 lg:p-16 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700">
-                <p className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]">
+              <div className="relative z-10 max-w-2xl p-12 lg:p-16">
+                <motion.p
+                  variants={itemVariants}
+                  className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
+                >
                   Technology support designed around care
-                </p>
+                </motion.p>
+
                 <h1 className="hero-title mt-4 text-white">
-                  <span className="block">Technology repaired</span>
-                  <span className="block text-[#FF493D]">with precision.</span>
+                  <motion.span variants={lineVariants} className="block">
+                    Technology repaired
+                  </motion.span>
+                  <motion.span variants={lineVariants} className="block text-[#FF493D]">
+                    with precision.
+                  </motion.span>
                 </h1>
-                <p className="mt-6 max-w-xl text-base leading-8 text-white/80 md:text-lg">
+
+                <motion.p
+                  variants={itemVariants}
+                  className="mt-6 max-w-xl text-base leading-8 text-white/80 md:text-lg"
+                >
                   Mobile, laptop, computer, tablet and gaming repair services designed around clear
                   advice, quality and care.
-                </p>
-                <div className="hero-actions mt-8 flex flex-wrap items-center gap-3">
+                </motion.p>
+
+                <motion.div
+                  variants={itemVariants}
+                  className="hero-actions mt-8 flex flex-wrap items-center gap-3"
+                >
                   <button
                     type="button"
                     onClick={scrollToQuote}
@@ -218,8 +289,12 @@ function HomePage() {
                   >
                     <Phone className="h-4 w-4" /> Call Now
                   </a>
-                </div>
-                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-white/15 pt-6 text-xs font-semibold text-white/75">
+                </motion.div>
+
+                <motion.div
+                  variants={itemVariants}
+                  className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-white/15 pt-6 text-xs font-semibold text-white/75"
+                >
                   <a
                     href="#visit"
                     className="group/link flex items-center gap-2 transition hover:text-white"
@@ -236,28 +311,73 @@ function HomePage() {
                     <span>Visit us on Eccleston Street</span>
                   </a>
                   <span className="flex items-center gap-2">
-                    <Wrench className="h-4 w-4 text-[#FF493D]" /> Repairs & device retail
+                    <Wrench className="h-4 w-4 text-[#FF493D]" /> Repairs &amp; device retail
                   </span>
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#34D399]" /> Open 7 days
                   </span>
-                </div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Mobile / Tablet Hero Layout */}
-            <div className="flex flex-col lg:hidden">
-              <div className="bg-[#141414] p-7 text-white sm:p-10">
-                <p className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]">
+            {/* Mobile / Tablet Hero Overlay Layout (< 768px / lg:hidden) */}
+            <motion.div
+              className="relative flex min-h-[clamp(520px,78svh,680px)] flex-col justify-end p-6 sm:p-10 lg:hidden"
+              initial={shouldReduceMotion ? "visible" : "hidden"}
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={containerVariants}
+            >
+              {/* Full-width Background Image with carefully controlled cropping */}
+              <div className="absolute inset-0 overflow-hidden">
+                <picture>
+                  <img
+                    src={SITE_MEDIA.repairHero.src}
+                    alt="Technician carefully repairing a mobile device hardware component"
+                    width={SITE_MEDIA.repairHero.width}
+                    height={SITE_MEDIA.repairHero.height}
+                    fetchPriority="high"
+                    className="h-full w-full object-cover object-[75%_center]"
+                  />
+                </picture>
+                {/* Carefully balanced dark gradient scrim behind copy for contrast */}
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-[#141414]/30"
+                  aria-hidden="true"
+                />
+              </div>
+
+              {/* Overlaid Hero Content */}
+              <div className="relative z-10 flex flex-col justify-end">
+                <motion.p
+                  variants={itemVariants}
+                  className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
+                >
                   Technology support designed around care
-                </p>
+                </motion.p>
+
                 <h1 className="hero-title mt-3 !text-3xl text-white sm:!text-4xl">
-                  Technology repaired <span className="text-[#FF493D]">with precision.</span>
+                  <motion.span variants={lineVariants} className="block">
+                    Technology repaired
+                  </motion.span>
+                  <motion.span variants={lineVariants} className="block text-[#FF493D]">
+                    with precision.
+                  </motion.span>
                 </h1>
-                <p className="mt-4 text-base leading-7 text-white/80">
-                  Mobile, laptop, computer, tablet and gaming repair services designed around clear advice, quality and care.
-                </p>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+
+                <motion.p
+                  variants={itemVariants}
+                  className="mt-3 text-sm leading-6 text-white/90 sm:text-base sm:leading-7"
+                >
+                  Mobile, laptop, computer, tablet and gaming repair services designed around clear
+                  advice, quality and care.
+                </motion.p>
+
+                {/* Mobile CTA Hierarchy: Primary -> Secondary -> Simple Tertiary */}
+                <motion.div
+                  variants={itemVariants}
+                  className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap"
+                >
                   <button
                     type="button"
                     onClick={scrollToQuote}
@@ -277,12 +397,16 @@ function HomePage() {
                   </a>
                   <a
                     href={BUSINESS.phoneHref}
-                    className="btn-dark min-h-12 w-full justify-center !text-base sm:w-auto"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 py-2 px-4 text-sm font-semibold text-white/90 underline-offset-4 hover:text-white hover:underline w-full sm:w-auto"
                   >
                     <Phone className="h-4 w-4" /> Call Now
                   </a>
-                </div>
-                <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-white/15 pt-5 text-xs font-semibold text-white/75">
+                </motion.div>
+
+                <motion.div
+                  variants={itemVariants}
+                  className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/20 pt-4 text-xs font-semibold text-white/80"
+                >
                   <a href="#visit" className="flex items-center gap-2">
                     <img
                       src={SITE_MEDIA.shopfront.src}
@@ -297,19 +421,9 @@ function HomePage() {
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#34D399]" /> Open 7 days
                   </span>
-                </div>
+                </motion.div>
               </div>
-              <div className="overflow-hidden border-t border-white/10">
-                <img
-                  src={SITE_MEDIA.repairHero.src}
-                  alt={SITE_MEDIA.repairHero.alt}
-                  width={SITE_MEDIA.repairHero.width}
-                  height={SITE_MEDIA.repairHero.height}
-                  fetchPriority="high"
-                  className="aspect-[16/10] w-full object-cover object-[80%_center] sm:aspect-[21/9]"
-                />
-              </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>

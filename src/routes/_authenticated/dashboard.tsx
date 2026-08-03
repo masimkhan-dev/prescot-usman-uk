@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardSidebar } from "@/components/dashboard/Sidebar";
+import { WelcomeToast, clearWelcomeToastFlag } from "@/components/dashboard/WelcomeToast";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardLayout,
@@ -11,12 +12,14 @@ function DashboardLayout() {
   const router = useRouter();
 
   async function handleSignOut() {
+    clearWelcomeToastFlag();
     await signOut();
     router.navigate({ to: "/", replace: true });
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface">
+    <div className="min-h-screen flex flex-col bg-surface relative">
+      <WelcomeToast />
       {/* Top Header */}
       <header className="bg-card border-b border-border sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between px-5 py-3.5">

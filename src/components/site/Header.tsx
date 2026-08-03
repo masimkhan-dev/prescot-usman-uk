@@ -4,6 +4,8 @@ import { ArrowRight, Menu, Phone, X } from "lucide-react";
 import { BUSINESS } from "@/lib/business";
 import { SITE_MEDIA } from "@/lib/site-content";
 
+import { AnnouncementTicker } from "./AnnouncementTicker";
+
 const NAV_ITEMS = [
   { to: "/services", label: "Repairs" },
   { to: "/products", label: "Products" },
@@ -71,20 +73,7 @@ export function Header() {
           scrolled ? "border-[#DDD5CB] bg-[#FAF7F2]/95 shadow-sm backdrop-blur-xl" : "border-[#ECE8E1] bg-[#FAF7F2]"
         }`}
       >
-        {/* Sticky Business-Information Bar (Desktop & Mobile) */}
-        <div className="bg-[#171717] px-4 py-2 text-xs font-semibold text-white sm:px-6">
-          <div className="container-page flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-center sm:text-left !px-0">
-            <span>Mobile, laptop, tablet & gaming-console support</span>
-            <a
-              href={BUSINESS.mapsDirections}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-1 text-[#D8D0C8] hover:text-[#FF493D] transition-colors"
-            >
-              57 Eccleston Street, Prescot L34 5QH · <span className="underline underline-offset-2">Get directions</span>
-            </a>
-          </div>
-        </div>
+        <AnnouncementTicker />
 
         <div className="container-page flex min-h-[72px] items-center justify-between gap-5 py-2">
           <Link to="/" className="flex items-center gap-3" aria-label="Prescot Mobiles home">
