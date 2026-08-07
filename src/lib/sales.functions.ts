@@ -56,8 +56,8 @@ const listSalesSchema = z.object({
   customer_id: z.string().uuid().optional().nullable(),
   search: z.string().optional().nullable(),
   status: z.enum(["completed", "partially_refunded", "refunded", "voided"]).optional().nullable(),
-  page: z.number().int().nonnegative().default(0),
-  limit: z.number().int().positive().max(100).default(25),
+  page: z.coerce.number().int().nonnegative().default(0),
+  limit: z.coerce.number().int().positive().max(100).default(25),
 });
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ const listSalesSchema = z.object({
 // ---------------------------------------------------------------------------
 export const completeSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => completeSaleSchema.parse(input))
+  .inputValidator((input: any) => completeSaleSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("complete_sale", {
       p_idempotency_key: data.idempotency_key,
@@ -92,7 +92,7 @@ export const completeSale = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const refundSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => refundSchema.parse(input))
+  .inputValidator((input: any) => refundSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("refund_sale", {
       p_sale_id: data.sale_id,
@@ -115,7 +115,7 @@ export const refundSale = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const getSaleDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: sale, error } = await context.supabase
       .from("sales")
@@ -148,7 +148,7 @@ export const getSaleDetail = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const listSales = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => listSalesSchema.parse(input ?? {}))
+  .inputValidator((input: any) => listSalesSchema.parse(input?.data ?? input ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("sales")
@@ -199,7 +199,7 @@ export const listSales = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const listSaleReturns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ sale_id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ sale_id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("sale_returns")

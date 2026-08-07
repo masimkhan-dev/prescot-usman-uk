@@ -24,7 +24,7 @@ export const listSuppliers = createServerFn({ method: "GET" })
 
 export const saveSupplier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => supplierSchema.parse(input))
+  .inputValidator((input: any) => supplierSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     const payload = { ...rest, email: rest.email || null };
@@ -50,7 +50,7 @@ export const saveSupplier = createServerFn({ method: "POST" })
 // Suppliers are deactivated, not deleted (admin only — enforced by RLS)
 export const deleteSupplier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     // Hard delete only if no related POs — otherwise error is thrown by FK
     const { error } = await context.supabase.from("suppliers").delete().eq("id", data.id);
@@ -78,17 +78,17 @@ const poSchema = z.object({
 
 export const listPurchaseOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         status: z
           .enum(["draft", "ordered", "partial", "received", "cancelled"])
           .optional()
           .nullable(),
-        page: z.number().int().nonnegative().default(0),
-        limit: z.number().int().positive().max(100).default(25),
+        page: z.coerce.number().int().nonnegative().default(0),
+        limit: z.coerce.number().int().positive().max(100).default(25),
       })
-      .parse(input ?? {}),
+      .parse(input?.data ?? input ?? {}),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -106,7 +106,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
 
 export const createPurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => poSchema.parse(input))
+  .inputValidator((input: any) => poSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     // Compute total server-side
     const total_pence = data.items.reduce((sum, i) => sum + i.qty_ordered * i.unit_cost_pence, 0);
@@ -148,7 +148,7 @@ export const createPurchaseOrder = createServerFn({ method: "POST" })
 
 export const receivePurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         po_id: z.string().uuid(),
@@ -164,7 +164,7 @@ export const receivePurchaseOrder = createServerFn({ method: "POST" })
           )
           .min(1),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("receive_purchase_order", {
@@ -180,7 +180,7 @@ export const receivePurchaseOrder = createServerFn({ method: "POST" })
 
 export const cancelPurchaseOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("purchase_orders")
@@ -196,7 +196,7 @@ export const cancelPurchaseOrder = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const recordSupplierPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         supplier_id: z.string().uuid(),
@@ -207,7 +207,7 @@ export const recordSupplierPayment = createServerFn({ method: "POST" })
         payment_date: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("record_supplier_payment", {
@@ -225,7 +225,7 @@ export const recordSupplierPayment = createServerFn({ method: "POST" })
 
 export const listSupplierPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ supplier_id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ supplier_id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("supplier_payments")

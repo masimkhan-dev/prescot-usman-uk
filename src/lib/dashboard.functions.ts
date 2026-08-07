@@ -38,6 +38,17 @@ export const getDashboardSummary = createServerFn({ method: "GET" })
       .from("v_low_stock_products")
       .select("id", { count: "exact", head: true });
 
+    // Total stock valuation: sum(stock_quantity * cost_price_pence)
+    const { data: activeProducts } = await context.supabase
+      .from("products")
+      .select("stock_quantity, cost_price_pence, avg_cost_pence")
+      .eq("status", "active");
+
+    const totalStockValuePence = (activeProducts ?? []).reduce(
+      (sum, p) => sum + (p.stock_quantity ?? 0) * (p.cost_price_pence ?? p.avg_cost_pence ?? 0),
+      0,
+    );
+
     // Today's expenses (non-void)
     const { data: todayExpenses } = await context.supabase
       .from("expenses")
@@ -74,6 +85,7 @@ export const getDashboardSummary = createServerFn({ method: "GET" })
       todayExpensesPence: expensesTotalPence,
       pendingRepairs: pendingRepairs ?? 0,
       lowStock: lowStock ?? 0,
+      totalStockValuePence,
       recentSales: recentSales ?? [],
     };
   });

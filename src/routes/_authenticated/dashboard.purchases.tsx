@@ -149,9 +149,12 @@ function DashboardPurchasesPage() {
         },
       });
       toast.success("Stock received and quantities updated!");
-      queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
+      await queryClient.refetchQueries({ queryKey: ["purchaseOrders"] });
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.refetchQueries({ queryKey: ["products"] });
     } catch (err: unknown) {
+      console.error("Error receiving stock:", err);
       toast.error(err instanceof Error ? err.message : "Failed to receive stock");
     } finally {
       setReceivingId(null);

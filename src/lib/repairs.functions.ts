@@ -50,8 +50,8 @@ const listRepairsSchema = z.object({
     .nullable(),
   search: z.string().optional().nullable(),
   technician_id: z.string().uuid().optional().nullable(),
-  page: z.number().int().nonnegative().default(0),
-  limit: z.number().int().positive().max(100).default(25),
+  page: z.coerce.number().int().nonnegative().default(0),
+  limit: z.coerce.number().int().positive().max(100).default(25),
 });
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ const listRepairsSchema = z.object({
 // ---------------------------------------------------------------------------
 export const listRepairs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => listRepairsSchema.parse(input ?? {}))
+  .inputValidator((input: any) => listRepairsSchema.parse(input?.data ?? input ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("repair_tickets")
@@ -86,7 +86,7 @@ export const listRepairs = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const getRepairDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: repair, error } = await context.supabase
       .from("repair_tickets")
@@ -111,7 +111,7 @@ export const getRepairDetail = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const saveRepair = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => repairUpsertSchema.parse(input))
+  .inputValidator((input: any) => repairUpsertSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { id, ...payload } = data;
 
@@ -162,7 +162,7 @@ export const saveRepair = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const updateRepairStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         repair_id: z.string().uuid(),
@@ -177,7 +177,7 @@ export const updateRepairStatus = createServerFn({ method: "POST" })
         ]),
         note: z.string().optional().nullable(),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("update_repair_status", {
@@ -194,14 +194,14 @@ export const updateRepairStatus = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const issueRepairParts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         repair_id: z.string().uuid(),
         idempotency_key: z.string().min(1),
         parts: z.array(repairPartSchema).min(1),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("issue_repair_parts", {
@@ -218,13 +218,13 @@ export const issueRepairParts = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const returnRepairParts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         repair_id: z.string().uuid(),
         part_ids: z.array(z.string().uuid()).min(1),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("return_repair_parts", {
@@ -240,7 +240,7 @@ export const returnRepairParts = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const recordRepairPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         repair_id: z.string().uuid(),
@@ -251,7 +251,7 @@ export const recordRepairPayment = createServerFn({ method: "POST" })
         shift_id: z.string().uuid().optional().nullable(),
         notes: z.string().optional().nullable(),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("record_repair_payment", {

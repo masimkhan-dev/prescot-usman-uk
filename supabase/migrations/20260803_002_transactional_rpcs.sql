@@ -67,7 +67,7 @@ DECLARE
   v_rows_updated integer;
 BEGIN
   -- Auth: caller must be admin or staff
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied: admin or staff role required';
   END IF;
 
@@ -257,7 +257,7 @@ DECLARE
   v_new_status   text;
   v_product      record;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 
@@ -412,7 +412,7 @@ DECLARE
   v_new_stock   integer;
   v_all_received boolean := true;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 
@@ -514,7 +514,7 @@ BEGIN
   WHERE purchase_order_id = p_po_id;
 
   UPDATE public.purchase_orders
-  SET status = CASE WHEN v_all_received THEN 'received' ELSE 'partial' END
+  SET status = (CASE WHEN v_all_received THEN 'received' ELSE 'partial' END)::public.po_status
   WHERE id = p_po_id;
 
   -- Update supplier balance (increase balance by PO total on first receipt)
@@ -558,7 +558,7 @@ DECLARE
   v_issued_ids uuid[] := '{}';
   v_part_id    uuid;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR
           public.has_role(v_caller_id, 'staff') OR
           public.has_role(v_caller_id, 'technician')) THEN
     RAISE EXCEPTION 'Permission denied';
@@ -650,7 +650,7 @@ DECLARE
   v_part      record;
   v_product   record;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 
@@ -710,7 +710,7 @@ DECLARE
   v_adj_number text;
   v_new_stock  integer;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 
@@ -772,7 +772,7 @@ DECLARE
   v_existing  uuid;
   v_shift_id  uuid;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 
@@ -826,7 +826,7 @@ DECLARE
   v_expected_cash    bigint;
   v_difference       bigint;
 BEGIN
-  IF NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
+  IF v_caller_id IS NOT NULL AND NOT (public.has_role(v_caller_id, 'admin') OR public.has_role(v_caller_id, 'staff')) THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
 

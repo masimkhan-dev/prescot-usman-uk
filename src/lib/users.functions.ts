@@ -27,8 +27,8 @@ export const listUsers = createServerFn({ method: "GET" })
 
 export const setUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ user_id: z.string(), role: z.enum(["admin", "staff", "technician"]) }).parse(input)
+  .inputValidator((input: any) =>
+    z.object({ user_id: z.string(), role: z.enum(["admin", "staff", "technician"]) }).parse(input?.data ?? input)
   )
   .handler(async ({ data, context }) => {
     const { data: isAdmin, error: adminError } = await context.supabase.rpc("has_role", {
@@ -47,8 +47,8 @@ export const setUserRole = createServerFn({ method: "POST" })
 
 export const removeUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ user_id: z.string(), role: z.enum(["admin", "staff", "technician"]) }).parse(input)
+  .inputValidator((input: any) =>
+    z.object({ user_id: z.string(), role: z.enum(["admin", "staff", "technician"]) }).parse(input?.data ?? input)
   )
   .handler(async ({ data, context }) => {
     const { data: isAdmin, error: adminError } = await context.supabase.rpc("has_role", {

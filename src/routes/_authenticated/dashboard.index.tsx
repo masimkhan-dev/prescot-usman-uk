@@ -60,6 +60,11 @@ function DashboardOverview() {
             change: "Collected",
           },
           {
+            label: "Total Stock Value",
+            value: formatGBP((data.totalStockValuePence ?? 0) / 100),
+            change: "Current inventory valuation",
+          },
+          {
             label: "Pending Repairs",
             value: data.pendingRepairs.toString(),
             change: "Active tickets",

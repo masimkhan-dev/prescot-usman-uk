@@ -14,14 +14,14 @@ const customerSchema = z.object({
 // Server-side search + pagination
 export const listCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         search: z.string().optional().nullable(),
-        page: z.number().int().nonnegative().default(0),
-        limit: z.number().int().positive().max(100).default(25),
+        page: z.coerce.number().int().nonnegative().default(0),
+        limit: z.coerce.number().int().positive().max(100).default(25),
       })
-      .parse(input ?? {}),
+      .parse(input?.data ?? input ?? {}),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -44,7 +44,7 @@ export const listCustomers = createServerFn({ method: "GET" })
 // Fast customer search for POS typeahead (no pagination, max 20)
 export const searchCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ q: z.string().min(1) }).parse(input))
+  .inputValidator((input: any) => z.object({ q: z.string().min(1) }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("customers")
@@ -59,7 +59,7 @@ export const searchCustomers = createServerFn({ method: "GET" })
 
 export const saveCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => customerSchema.parse(input))
+  .inputValidator((input: any) => customerSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     const payload = { ...rest, email: rest.email || null };
@@ -85,7 +85,7 @@ export const saveCustomer = createServerFn({ method: "POST" })
 // Soft-delete: mark inactive (FK-linked records preserved)
 export const deactivateCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("customers")

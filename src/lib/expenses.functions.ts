@@ -12,16 +12,16 @@ const expenseSchema = z.object({
 
 export const listExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         from: z.string().optional().nullable(),
         to: z.string().optional().nullable(),
         include_void: z.boolean().default(false),
-        page: z.number().int().nonnegative().default(0),
-        limit: z.number().int().positive().max(100).default(25),
+        page: z.coerce.number().int().nonnegative().default(0),
+        limit: z.coerce.number().int().positive().max(100).default(25),
       })
-      .parse(input ?? {}),
+      .parse(input?.data ?? input ?? {}),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -41,7 +41,7 @@ export const listExpenses = createServerFn({ method: "GET" })
 
 export const saveExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => expenseSchema.parse(input))
+  .inputValidator((input: any) => expenseSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: inserted, error } = await context.supabase
       .from("expenses")
@@ -55,13 +55,13 @@ export const saveExpense = createServerFn({ method: "POST" })
 // Void (soft-delete) — never hard-delete
 export const voidExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         id: z.string().uuid(),
         void_reason: z.string().min(1),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase

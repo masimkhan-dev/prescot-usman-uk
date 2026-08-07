@@ -18,13 +18,13 @@ export const getOpenShift = createServerFn({ method: "GET" })
 
 export const listShifts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
-        page: z.number().int().nonnegative().default(0),
-        limit: z.number().int().positive().max(100).default(30),
+        page: z.coerce.number().int().nonnegative().default(0),
+        limit: z.coerce.number().int().positive().max(100).default(30),
       })
-      .parse(input ?? {}),
+      .parse(input?.data ?? input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const {
@@ -43,8 +43,8 @@ export const listShifts = createServerFn({ method: "GET" })
 // openShift — calls the open_shift RPC (prevents double-open with FOR UPDATE SKIP LOCKED)
 export const openShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ opening_float_pence: z.number().int().nonnegative() }).parse(input),
+  .inputValidator((input: any) =>
+    z.object({ opening_float_pence: z.number().int().nonnegative() }).parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("open_shift", {
@@ -57,14 +57,14 @@ export const openShift = createServerFn({ method: "POST" })
 // closeShift — calls the close_shift RPC; server recomputes totals, does NOT accept client totals
 export const closeShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         shift_id: z.string().uuid(),
         counted_cash_pence: z.number().int().nonnegative(),
         notes: z.string().optional().nullable(),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("close_shift", {
@@ -79,7 +79,7 @@ export const closeShift = createServerFn({ method: "POST" })
 // getShiftReconciliation — reads from the v_shift_reconciliation view
 export const getShiftReconciliation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ shift_id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ shift_id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("v_shift_reconciliation")

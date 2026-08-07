@@ -63,9 +63,17 @@ function ProductsPage() {
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [adjusting, setAdjusting] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["products", searchQuery, page],
-    queryFn: () => listFn({ data: { search: searchQuery, page, limit: 50 } }),
+    queryFn: async () => {
+      try {
+        const res = await listFn({ data: { search: searchQuery, page, limit: 50 } });
+        return res;
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        throw err;
+      }
+    },
   });
 
   const { data: movementsData } = useQuery({
@@ -76,32 +84,43 @@ function ProductsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Item Name is required");
+      return;
+    }
+    if (!form.category.trim()) {
+      toast.error("Category is required");
+      return;
+    }
+    
     setSubmitting(true);
     const costPence = Math.round((parseFloat(form.cost_price_pounds) || 0) * 100);
     const salePence = Math.round((parseFloat(form.sale_price_pounds) || 0) * 100);
 
+    const payload = {
+      id: form.id ? form.id : undefined,
+      name: form.name.trim(),
+      category: form.category.trim(),
+      sku: form.sku?.trim() || null,
+      barcode: form.barcode?.trim() || null,
+      type: form.type,
+      cost_price_pence: costPence,
+      sale_price_pence: salePence,
+      stock_quantity: Number(form.stock_quantity) || 0,
+      low_stock_threshold: Number(form.low_stock_threshold) || 0,
+      warranty_days: Number(form.warranty_days) || 0,
+      status: form.status,
+    };
+
     try {
-      await saveFn({
-        data: {
-          id: form.id || undefined,
-          name: form.name,
-          category: form.category,
-          sku: form.sku || null,
-          barcode: form.barcode || null,
-          type: form.type,
-          cost_price_pence: costPence,
-          sale_price_pence: salePence,
-          stock_quantity: Number(form.stock_quantity),
-          low_stock_threshold: Number(form.low_stock_threshold),
-          warranty_days: Number(form.warranty_days),
-          status: form.status,
-        },
-      });
-      toast.success(editing ? "Product updated" : "Product saved");
+      await saveFn({ data: payload });
+      toast.success(editing ? "Product updated successfully!" : "Product saved successfully!");
       setForm({ ...emptyProduct });
       setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.refetchQueries({ queryKey: ["products"] });
     } catch (err: unknown) {
+      console.error("Save product error:", err);
       toast.error(err instanceof Error ? err.message : "Failed to save product");
     } finally {
       setSubmitting(false);
@@ -175,89 +194,133 @@ function ProductsPage() {
           {editing ? "Edit Inventory Item" : "Add New Inventory Item"}
         </div>
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <input
-            type="text"
-            placeholder="Item Name (e.g. iPhone 14 Screen Replacement)"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none sm:col-span-2"
-          />
-          <input
-            type="text"
-            placeholder="Category (e.g. Screens / Batteries)"
-            required
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <select
-            value={form.type}
-            onChange={(e) =>
-              setForm({ ...form, type: e.target.value as "product" | "part" | "service" })
-            }
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-          >
-            <option value="product">Retail Product (For Sale)</option>
-            <option value="part">Repair Component Part</option>
-            <option value="service">Service / Labour Item</option>
-          </select>
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Item Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. iPhone 14 Screen Replacement"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <input
-            type="text"
-            placeholder="SKU"
-            value={form.sku}
-            onChange={(e) => setForm({ ...form, sku: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Barcode Number"
-            value={form.barcode}
-            onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Cost Price (£)"
-            required
-            value={form.cost_price_pounds}
-            onChange={(e) => setForm({ ...form, cost_price_pounds: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Retail / Sale Price (£)"
-            required
-            value={form.sale_price_pounds}
-            onChange={(e) => setForm({ ...form, sale_price_pounds: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Screens / Accessories"
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <input
-            type="number"
-            placeholder="Current Stock"
-            required
-            value={form.stock_quantity}
-            onChange={(e) => setForm({ ...form, stock_quantity: Number(e.target.value) })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="number"
-            placeholder="Low Stock Warning Limit"
-            value={form.low_stock_threshold}
-            onChange={(e) => setForm({ ...form, low_stock_threshold: Number(e.target.value) })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="number"
-            placeholder="Warranty (Days)"
-            value={form.warranty_days}
-            onChange={(e) => setForm({ ...form, warranty_days: Number(e.target.value) })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none sm:col-span-2"
-          />
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Inventory Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={form.type}
+              onChange={(e) =>
+                setForm({ ...form, type: e.target.value as "product" | "part" | "service" })
+              }
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+            >
+              <option value="product">Retail Product (For Sale)</option>
+              <option value="part">Repair Component Part</option>
+              <option value="service">Service / Labour Item</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">SKU Code</label>
+            <input
+              type="text"
+              placeholder="SKU-12345"
+              value={form.sku}
+              onChange={(e) => setForm({ ...form, sku: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Barcode / EAN</label>
+            <input
+              type="text"
+              placeholder="7388494995"
+              value={form.barcode}
+              onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Cost Price (£) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.cost_price_pounds}
+              onChange={(e) => setForm({ ...form, cost_price_pounds: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Retail Sale Price (£) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.sale_price_pounds}
+              onChange={(e) => setForm({ ...form, sale_price_pounds: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Current Stock Qty <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              placeholder="0"
+              value={form.stock_quantity}
+              onChange={(e) => setForm({ ...form, stock_quantity: Number(e.target.value) })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Low Stock Warning Limit</label>
+            <input
+              type="number"
+              placeholder="5"
+              value={form.low_stock_threshold}
+              onChange={(e) => setForm({ ...form, low_stock_threshold: Number(e.target.value) })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Warranty (Days)</label>
+            <input
+              type="number"
+              placeholder="0"
+              value={form.warranty_days}
+              onChange={(e) => setForm({ ...form, warranty_days: Number(e.target.value) })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

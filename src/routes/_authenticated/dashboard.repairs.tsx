@@ -118,6 +118,15 @@ function RepairsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.device.trim()) {
+      toast.error("Device Name is required (e.g. iPhone 13)");
+      return;
+    }
+    if (!form.issue.trim()) {
+      toast.error("Reported Fault / Issue is required");
+      return;
+    }
+
     const labourPence = Math.round((parseFloat(form.labourPounds) || 0) * 100);
     const totalPence = Math.round((parseFloat(form.totalPounds) || 0) * 100);
 
@@ -126,23 +135,24 @@ function RepairsPage() {
       const result = await saveFn({
         data: {
           customer_id: form.customer_id || null,
-          device: form.device,
-          brand: form.brand || null,
-          model: form.model || null,
-          imei: form.imei || null,
-          serial_number: form.serial_number || null,
-          issue: form.issue,
+          device: form.device.trim(),
+          brand: form.brand?.trim() || null,
+          model: form.model?.trim() || null,
+          imei: form.imei?.trim() || null,
+          serial_number: form.serial_number?.trim() || null,
+          issue: form.issue.trim(),
           method: form.method,
           labour_price_pence: labourPence,
           total_price_pence: totalPence,
           technician_id: form.technician_id || null,
-          notes: form.notes || null,
+          notes: form.notes?.trim() || null,
         },
       });
 
-      toast.success(`Repair ticket #${result.rep_number} created`);
+      toast.success(`Repair ticket #${result.rep_number} created successfully`);
       setForm({ ...emptyRepair });
-      queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      await queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      await queryClient.refetchQueries({ queryKey: ["repairs"] });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create repair ticket");
     } finally {
@@ -244,91 +254,118 @@ function RepairsPage() {
           Intake New Device Repair
         </div>
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <select
-            value={form.customer_id}
-            onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-          >
-            <option value="">Select Existing Customer (Optional)</option>
-            {customersData?.rows.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.phone ? `(${c.phone})` : ""}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Customer (Optional)</label>
+            <select
+              value={form.customer_id}
+              onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+            >
+              <option value="">-- Select Existing Customer --</option>
+              {customersData?.rows.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.phone ? `(${c.phone})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <input
-            type="text"
-            placeholder="Device Name (e.g. iPhone 13 Pro) *"
-            required
-            value={form.device}
-            onChange={(e) => setForm({ ...form, device: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="text"
-            placeholder="Brand (e.g. Apple / Samsung)"
-            value={form.brand}
-            onChange={(e) => setForm({ ...form, brand: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
-          <input
-            type="text"
-            placeholder="IMEI Number (15 digits)"
-            value={form.imei}
-            onChange={(e) => setForm({ ...form, imei: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-          />
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Device Name *</label>
+            <input
+              type="text"
+              placeholder="e.g. iPhone 13 Pro"
+              value={form.device}
+              onChange={(e) => setForm({ ...form, device: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <input
-            type="text"
-            placeholder="Reported Fault / Issue *"
-            required
-            value={form.issue}
-            onChange={(e) => setForm({ ...form, issue: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none sm:col-span-2"
-          />
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Brand</label>
+            <input
+              type="text"
+              placeholder="e.g. Apple / Samsung"
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Labour Charge (£)"
-            value={form.labourPounds}
-            onChange={(e) => setForm({ ...form, labourPounds: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">IMEI Number (15 Digits)</label>
+            <input
+              type="text"
+              placeholder="e.g. 352093081234567"
+              value={form.imei}
+              onChange={(e) => setForm({ ...form, imei: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Estimated Total Quote (£)"
-            value={form.totalPounds}
-            onChange={(e) => setForm({ ...form, totalPounds: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-          />
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold text-slate-700 mb-1">Reported Fault / Issue *</label>
+            <input
+              type="text"
+              placeholder="e.g. Broken screen & battery replacement"
+              value={form.issue}
+              onChange={(e) => setForm({ ...form, issue: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <select
-            value={form.technician_id}
-            onChange={(e) => setForm({ ...form, technician_id: e.target.value })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-          >
-            <option value="">Assign Technician (Optional)</option>
-            {technicians?.map((t) => (
-              <option key={t.user_id} value={t.user_id}>
-                {t.full_name || t.email}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Labour Charge (£)</label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.labourPounds}
+              onChange={(e) => setForm({ ...form, labourPounds: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+            />
+          </div>
 
-          <select
-            value={form.method}
-            onChange={(e) => setForm({ ...form, method: e.target.value as RepairMethod })}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-          >
-            <option value="walk-in">Walk-in Store</option>
-            <option value="door-to-door">Door-to-door Collection</option>
-            <option value="mail-in">Mail-in Service</option>
-          </select>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Estimated Total Quote (£)</label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.totalPounds}
+              onChange={(e) => setForm({ ...form, totalPounds: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Assign Technician (Optional)</label>
+            <select
+              value={form.technician_id}
+              onChange={(e) => setForm({ ...form, technician_id: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+            >
+              <option value="">-- Choose Technician --</option>
+              {technicians?.map((t) => (
+                <option key={t.user_id} value={t.user_id}>
+                  {t.full_name || t.email}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Service Method</label>
+            <select
+              value={form.method}
+              onChange={(e) => setForm({ ...form, method: e.target.value as RepairMethod })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
+            >
+              <option value="walk-in">Walk-in Store</option>
+              <option value="door-to-door">Door-to-door Collection</option>
+              <option value="mail-in">Mail-in Service</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex justify-end pt-1">
@@ -459,7 +496,25 @@ function RepairsPage() {
                           {formatGBP((r.amount_paid_pence ?? 0) / 100)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right space-x-1">
+                      <td className="px-4 py-3 text-right space-x-1.5 flex items-center justify-end">
+                        {r.status !== "ready" && r.status !== "completed" && r.status !== "cancelled" && (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusTransition(r.id, "ready")}
+                            className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[10px] font-bold transition-colors"
+                          >
+                            Mark Ready
+                          </button>
+                        )}
+                        {r.status === "ready" && (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusTransition(r.id, "completed")}
+                            className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Mark Completed
+                          </button>
+                        )}
                         {!isFullyPaid && r.status !== "cancelled" && (
                           <button
                             type="button"
@@ -474,7 +529,7 @@ function RepairsPage() {
                                 ((r.total_price_pence - r.amount_paid_pence) / 100).toFixed(2),
                               );
                             }}
-                            className="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold"
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-colors"
                           >
                             Pay
                           </button>
@@ -482,9 +537,9 @@ function RepairsPage() {
                         <button
                           type="button"
                           onClick={() => setDetailId(r.id)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700"
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700 transition-colors"
                         >
-                          View / Status
+                          Details
                         </button>
                       </td>
                     </tr>

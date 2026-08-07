@@ -13,7 +13,7 @@ const reportRangeSchema = z.object({
  */
 export const getReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => reportRangeSchema.parse(input ?? {}))
+  .inputValidator((input: any) => reportRangeSchema.parse(input?.data ?? input ?? {}))
   .handler(async ({ data, context }) => {
     const now = new Date();
     const todayLondon = now.toLocaleDateString("sv-SE", { timeZone: "Europe/London" });

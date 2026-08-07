@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listAllActiveProducts } from "@/lib/products.functions";
 import { searchCustomers } from "@/lib/customers.functions";
@@ -38,6 +38,7 @@ interface CartItem {
 }
 
 function POSPage() {
+  const queryClient = useQueryClient();
   const listProductsFn = useServerFn(listAllActiveProducts);
   const searchCustomersFn = useServerFn(searchCustomers);
   const completeSaleFn = useServerFn(completeSale);
@@ -163,6 +164,20 @@ function POSPage() {
     );
   }
 
+  function updateQty(id: string, targetQty: number) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.product_id !== id) return c;
+        if (targetQty > c.stock) {
+          toast.error(`Only ${c.stock} units available in stock`);
+        }
+        const validQty = Math.min(Math.max(targetQty, 0), c.stock);
+        const lineTotal = validQty * c.unit_price_pence - c.discount_pence;
+        return { ...c, quantity: validQty, line_total_pence: Math.max(lineTotal, 0) };
+      }),
+    );
+  }
+
   function removeFromCart(id: string) {
     setCart((prev) => prev.filter((c) => c.product_id !== id));
   }
@@ -241,11 +256,19 @@ function POSPage() {
           unit_price: c.unit_price_pence / 100,
           total: c.line_total_pence / 100,
         })),
+        subtotal: subtotalPence / 100,
         discount: discountPence / 100,
         total: totalPence / 100,
         paid: true,
+        amountPaid: (paymentMethod === "cash" && amountTenderedPence ? Math.max(amountTenderedPence, totalPence) : totalPence) / 100,
+        balanceDue: 0,
         paymentMethod: paymentMethod,
       });
+
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.refetchQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
 
       setCart([]);
       setDiscountPounds(0);
@@ -431,19 +454,34 @@ function POSPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-slate-200 rounded-lg bg-white">
+                    <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden">
                       <button
                         type="button"
                         onClick={() => changeQty(item.product_id, -1)}
-                        className="p-1 hover:bg-slate-100 text-slate-600 rounded-l-lg"
+                        className="p-1.5 hover:bg-slate-100 text-slate-600 border-r border-slate-200"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="px-2 font-bold text-slate-900">{item.quantity}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={item.stock}
+                        value={item.quantity === 0 ? "" : item.quantity}
+                        onChange={(e) => {
+                          const q = parseInt(e.target.value, 10);
+                          updateQty(item.product_id, isNaN(q) ? 0 : q);
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value || parseInt(e.target.value, 10) <= 0) {
+                            updateQty(item.product_id, 1);
+                          }
+                        }}
+                        className="w-12 text-center font-extrabold text-slate-900 outline-none text-xs bg-transparent py-0.5"
+                      />
                       <button
                         type="button"
                         onClick={() => changeQty(item.product_id, 1)}
-                        className="p-1 hover:bg-slate-100 text-slate-600 rounded-r-lg"
+                        className="p-1.5 hover:bg-slate-100 text-slate-600 border-l border-slate-200"
                       >
                         <Plus className="w-3 h-3" />
                       </button>

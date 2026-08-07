@@ -13,11 +13,11 @@ const productUpsertSchema = z.object({
   barcode: z.string().optional().nullable(),
   type: z.enum(["product", "part", "service"]).default("product"),
   track_type: z.enum(["quantity", "serial"]).default("quantity"),
-  cost_price_pence: z.number().int().nonnegative(),
-  sale_price_pence: z.number().int().nonnegative(),
-  stock_quantity: z.number().int().nonnegative(),
-  low_stock_threshold: z.number().int().nonnegative().default(5),
-  warranty_days: z.number().int().nonnegative().default(0),
+  cost_price_pence: z.coerce.number().int().nonnegative(),
+  sale_price_pence: z.coerce.number().int().nonnegative(),
+  stock_quantity: z.coerce.number().int().nonnegative(),
+  low_stock_threshold: z.coerce.number().int().nonnegative().default(5),
+  warranty_days: z.coerce.number().int().nonnegative().default(0),
   status: z.enum(["active", "inactive"]).default("active"),
   notes: z.string().optional().nullable(),
 });
@@ -26,8 +26,8 @@ const listProductsSchema = z.object({
   search: z.string().optional().nullable(),
   category: z.string().optional().nullable(),
   status: z.enum(["active", "inactive"]).optional().nullable(),
-  page: z.number().int().nonnegative().default(0),
-  limit: z.number().int().positive().max(200).default(50),
+  page: z.coerce.number().int().nonnegative().default(0),
+  limit: z.coerce.number().int().positive().max(200).default(50),
 });
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ const listProductsSchema = z.object({
 // ---------------------------------------------------------------------------
 export const listProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => listProductsSchema.parse(input ?? {}))
+  .inputValidator((input: any) => listProductsSchema.parse(input?.data ?? input ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("products")
@@ -66,8 +66,8 @@ export const listProducts = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const listAllActiveProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ search: z.string().optional().nullable() }).parse(input ?? {}),
+  .inputValidator((input: any) =>
+    z.object({ search: z.string().optional().nullable() }).parse(input?.data ?? input ?? {}),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -76,7 +76,6 @@ export const listAllActiveProducts = createServerFn({ method: "GET" })
         "id, name, category, sku, barcode, sale_price_pence, cost_price_pence, avg_cost_pence, stock_quantity, warranty_days, track_type, type",
       )
       .eq("status", "active")
-      .gt("stock_quantity", 0)
       .order("name", { ascending: true })
       .limit(200);
 
@@ -95,7 +94,7 @@ export const listAllActiveProducts = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const saveProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => productUpsertSchema.parse(input))
+  .inputValidator((input: any) => productUpsertSchema.parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     const payload = {
@@ -113,7 +112,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         .eq("id", id)
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Failed to update product");
       return updated;
     }
 
@@ -122,7 +121,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Failed to insert product");
     return inserted;
   });
 
@@ -131,7 +130,7 @@ export const saveProduct = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const deactivateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: any) => z.object({ id: z.string().uuid() }).parse(input?.data ?? input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("products")
