@@ -3,9 +3,13 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listExpenses, saveExpense, voidExpense } from "@/lib/expenses.functions";
+import { getOpenShift } from "@/lib/shifts.functions";
 import { formatGBP } from "@/lib/utils";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Loader2, Plus, Ban, Receipt } from "lucide-react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/expenses")({
   component: ExpensesPage,
@@ -23,6 +27,7 @@ function ExpensesPage() {
   const listFn = useServerFn(listExpenses);
   const saveFn = useServerFn(saveExpense);
   const voidFn = useServerFn(voidExpense);
+  const getOpenShiftFn = useServerFn(getOpenShift);
 
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ ...emptyExpense });
@@ -30,16 +35,23 @@ function ExpensesPage() {
   const [voidReasonPrompt, setVoidReasonPrompt] = useState<{ id: string } | null>(null);
   const [voidReasonText, setVoidReasonText] = useState("");
 
+  const { data: openShift } = useQuery({
+    queryKey: ["open-shift"],
+    queryFn: () => getOpenShiftFn(),
+    staleTime: 1000 * 15,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["expenses", page],
     queryFn: () => listFn({ data: { include_void: true, page, limit: 30 } }),
+    staleTime: 1000 * 30,
   });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const amountPence = Math.round(parseFloat(form.amountPounds) * 100);
     if (isNaN(amountPence) || amountPence <= 0) {
-      toast.error("Please enter a valid positive amount");
+      toastError("Please enter a valid positive amount");
       return;
     }
 
@@ -51,13 +63,14 @@ function ExpensesPage() {
           description: form.description.trim(),
           amount_pence: amountPence,
           expense_date: form.expense_date,
+          shift_id: openShift?.id ?? null,
         },
       });
-      toast.success("Expense recorded successfully");
+      toastSuccess("Expense recorded successfully");
       setForm({ ...emptyExpense });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save expense");
+      toastError(err, "Failed to save expense");
     } finally {
       setSubmitting(false);
     }
@@ -65,31 +78,43 @@ function ExpensesPage() {
 
   async function handleVoid(id: string) {
     if (!voidReasonText.trim()) {
-      toast.error("Please enter a reason for voiding this expense");
+      toastError("Please enter a reason for voiding this expense");
       return;
     }
     try {
       await voidFn({ data: { id, void_reason: voidReasonText.trim() } });
-      toast.success("Expense voided");
+      toastSuccess("Expense voided");
       setVoidReasonPrompt(null);
       setVoidReasonText("");
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to void expense");
+      toastError(err, "Failed to void expense");
     }
   }
 
   return (
-    <div className="db-page">
-      <div className="db-page-header">
-        <div className="flex items-center gap-2">
-          <Receipt className="w-4 h-4 text-brand" />
-          <h1 className="db-page-title">Expense Management</h1>
+    <div className="db-page space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="db-page-header">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-brand" />
+            <h1 className="db-page-title">Expense Management</h1>
+            <PageHelpButton
+              pageTitle="Expenses"
+              pageKey="expenses"
+              steps={[
+                "Enter business expense category, description and amount.",
+                "Choose the correct payment date.",
+                "Cash expenses affect open till balance when applicable.",
+              ]}
+              firstTimeTip="Tip: Cash expenses recorded during an active shift automatically adjust the open till balance."
+            />
+          </div>
+          <p className="db-page-subtitle">
+            Log store operational costs. Immutable audit record — expenses can be voided with reason,
+            never deleted.
+          </p>
         </div>
-        <p className="db-page-subtitle">
-          Log store operational costs. Immutable audit record — expenses can be voided with reason,
-          never deleted.
-        </p>
       </div>
 
       {/* Log Form */}
@@ -131,19 +156,27 @@ function ExpensesPage() {
           />
         </div>
         <div className="flex justify-end pt-1">
-          <button type="submit" disabled={submitting} className="btn-primary !py-2 !px-4 !text-xs flex items-center gap-1.5 disabled:opacity-60">
-            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-primary !py-2 !px-4 !text-xs flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
+          >
+            {submitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
             Record Expense
           </button>
         </div>
       </form>
 
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-brand" />
-        </div>
-      ) : (
-        <div className="db-card !p-0 overflow-hidden">
+      <div className="db-card !p-0 overflow-hidden">
+        {isLoading ? (
+          <div className="p-4">
+            <TableSkeleton rows={5} cols={6} />
+          </div>
+        ) : (
           <table className="db-table">
             <thead>
               <tr>
@@ -184,7 +217,7 @@ function ExpensesPage() {
                       <button
                         type="button"
                         onClick={() => setVoidReasonPrompt({ id: e.id })}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/8 text-destructive hover:bg-destructive/15 rounded-lg text-[11px] font-bold transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/8 text-destructive hover:bg-destructive/15 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                       >
                         <Ban className="w-3 h-3" /> Void
                       </button>
@@ -194,15 +227,18 @@ function ExpensesPage() {
               ))}
               {data?.rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs font-medium">
-                    No expenses logged.
+                  <td colSpan={6}>
+                    <EmptyState
+                      title="No expenses logged"
+                      description="Use the form above to record business expenses."
+                    />
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Void Reason Modal */}
       {voidReasonPrompt && (
@@ -223,14 +259,14 @@ function ExpensesPage() {
               <button
                 type="button"
                 onClick={() => setVoidReasonPrompt(null)}
-                className="btn-outline !py-1.5 !px-3 !text-xs"
+                className="btn-outline !py-1.5 !px-3 !text-xs cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleVoid(voidReasonPrompt.id)}
-                className="btn-primary !bg-destructive !py-1.5 !px-3 !text-xs"
+                className="btn-primary !bg-destructive !py-1.5 !px-3 !text-xs cursor-pointer"
               >
                 Confirm Void
               </button>

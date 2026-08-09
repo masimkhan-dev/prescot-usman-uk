@@ -9,8 +9,11 @@ import {
   listSuppliers,
 } from "@/lib/suppliers.functions";
 import { listAllActiveProducts } from "@/lib/products.functions";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ShoppingBag, Plus, Search, X, CheckCircle2, Clock, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/purchases")({
   component: DashboardPurchasesPage,
@@ -43,16 +46,19 @@ function DashboardPurchasesPage() {
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ["purchaseOrders"],
     queryFn: () => listOrdersFn({ data: { page: 0, limit: 100 } }),
+    staleTime: 1000 * 30, // 30s cache
   });
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => listSuppliersFn(),
+    staleTime: 1000 * 60 * 10,
   });
 
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: () => listProductsFn({ data: {} }),
+    staleTime: 1000 * 60 * 2,
   });
 
   const orders = (ordersData?.rows ?? []).filter((order) => {
@@ -91,11 +97,11 @@ function DashboardPurchasesPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.supplier_id) {
-      toast.error("Please select a supplier");
+      toastError("Please select a supplier");
       return;
     }
     if (form.items.length === 0) {
-      toast.error("Please add at least one line item");
+      toastError("Please add at least one line item");
       return;
     }
 
@@ -113,12 +119,12 @@ function DashboardPurchasesPage() {
           })),
         },
       });
-      toast.success("Purchase order created successfully");
+      toastSuccess("Purchase order created successfully");
       setModalOpen(false);
       setForm({ supplier_id: "", notes: "", items: [] });
       queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to create purchase order");
+      toastError(err, "Failed to create purchase order");
     } finally {
       setSubmitting(false);
     }
@@ -133,7 +139,7 @@ function DashboardPurchasesPage() {
       .filter((item) => item.qty_received > 0);
 
     if (items.length === 0) {
-      toast.error("This order has no outstanding quantity to receive");
+      toastError("This order has no outstanding quantity to receive");
       return;
     }
     if (!confirm("Receive this order and update stock quantities?")) return;
@@ -148,26 +154,35 @@ function DashboardPurchasesPage() {
           items,
         },
       });
-      toast.success("Stock received and quantities updated!");
+      toastSuccess("Stock received and quantities updated!");
       await queryClient.invalidateQueries({ queryKey: ["purchaseOrders"] });
-      await queryClient.refetchQueries({ queryKey: ["purchaseOrders"] });
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      await queryClient.refetchQueries({ queryKey: ["products"] });
     } catch (err: unknown) {
       console.error("Error receiving stock:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to receive stock");
+      toastError(err, "Failed to receive stock");
     } finally {
       setReceivingId(null);
     }
   };
 
   return (
-    <div className="db-page">
+    <div className="db-page space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="db-page-header">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-4 h-4 text-brand" />
             <h1 className="db-page-title">Purchase Orders & Stock Ingestion</h1>
+            <PageHelpButton
+              pageTitle="Purchases"
+              pageKey="purchases"
+              steps={[
+                "Create a purchase order for suppliers.",
+                "Add ordered products/parts and quantities.",
+                "Click Receive Stock when goods are delivered.",
+                "Stock quantities update automatically after receiving.",
+              ]}
+              firstTimeTip="Tip: Stock quantities will update automatically once you click Receive Stock."
+            />
           </div>
           <p className="db-page-subtitle">
             Track wholesale orders, replacement parts stock-in, and supplier invoices.
@@ -186,7 +201,7 @@ function DashboardPurchasesPage() {
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-primary !py-2 !px-4 !text-xs shrink-0 inline-flex items-center gap-1.5"
+            className="btn-primary !py-2 !px-4 !text-xs shrink-0 inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" /> New Order
           </button>
@@ -194,78 +209,90 @@ function DashboardPurchasesPage() {
       </div>
 
       <div className="db-card !p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="db-table">
-            <thead>
-              <tr>
-                <th className="db-th">PO ID</th>
-                <th className="db-th">Date</th>
-                <th className="db-th">Supplier</th>
-                <th className="db-th">Status</th>
-                <th className="db-th text-right">Total (£)</th>
-                <th className="db-th text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        {isLoading ? (
+          <div className="p-4">
+            <TableSkeleton rows={5} cols={6} />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="db-table min-w-[650px]">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">Loading purchase orders…</td>
+                  <th className="db-th">PO ID</th>
+                  <th className="db-th">Date</th>
+                  <th className="db-th">Supplier</th>
+                  <th className="db-th">Status</th>
+                  <th className="db-th text-right">Total (£)</th>
+                  <th className="db-th text-right">Action</th>
                 </tr>
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">No purchase orders recorded.</td>
-                </tr>
-              ) : (
-                orders.map((po) => (
-                  <tr key={po.id} className="db-tr-hover">
-                    <td className="db-td font-mono font-bold text-ink">
-                      {po.po_number ?? `#${po.id.slice(0, 8)}`}
-                    </td>
-                    <td className="db-td text-muted-foreground">
-                      {new Date(po.created_at).toLocaleDateString("en-GB")}
-                    </td>
-                    <td className="db-td font-medium text-foreground">
-                      {po.suppliers?.name || "Standard Supplier"}
-                    </td>
-                    <td className="db-td">
-                      {po.status === "received" ? (
-                        <span className="db-badge bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Received
-                        </span>
-                      ) : (
-                        <span className="db-badge bg-amber-100 text-amber-800 inline-flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {po.status || "Ordered"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="db-td text-right font-extrabold text-ink tabular-nums">
-                      £{(po.total_pence / 100).toFixed(2)}
-                    </td>
-                    <td className="db-td text-right">
-                      {po.status !== "received" && (
-                        <button
-                          onClick={() => handleReceiveOrder(po)}
-                          disabled={receivingId === po.id}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors disabled:opacity-60"
-                        >
-                          {receivingId === po.id ? "Receiving…" : "Receive Stock"}
-                        </button>
-                      )}
+              </thead>
+              <tbody>
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        title="No purchase orders recorded"
+                        description="Create a purchase order when ordering stock from suppliers."
+                        actionLabel="+ New Order"
+                        onAction={() => setModalOpen(true)}
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  orders.map((po) => (
+                    <tr key={po.id} className="db-tr-hover">
+                      <td className="db-td font-mono font-bold text-ink">
+                        {po.po_number ?? `#${po.id.slice(0, 8)}`}
+                      </td>
+                      <td className="db-td text-muted-foreground">
+                        {new Date(po.created_at).toLocaleDateString("en-GB")}
+                      </td>
+                      <td className="db-td font-medium text-foreground">
+                        {po.suppliers?.name || "Standard Supplier"}
+                      </td>
+                      <td className="db-td">
+                        {po.status === "received" ? (
+                          <span className="db-badge bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Received
+                          </span>
+                        ) : (
+                          <span className="db-badge bg-amber-100 text-amber-800 inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {po.status || "Ordered"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="db-td text-right font-extrabold text-ink tabular-nums">
+                        £{(po.total_pence / 100).toFixed(2)}
+                      </td>
+                      <td className="db-td text-right">
+                        {po.status !== "received" && (
+                          <button
+                            onClick={() => handleReceiveOrder(po)}
+                            disabled={receivingId === po.id}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors disabled:opacity-60 cursor-pointer"
+                          >
+                            {receivingId === po.id ? "Receiving…" : "Receive Stock"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-5 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="font-extrabold text-sm text-ink">Create Purchase Order</h2>
-              <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -281,7 +308,9 @@ function DashboardPurchasesPage() {
                 >
                   <option value="">-- Select Supplier --</option>
                   {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -310,7 +339,10 @@ function DashboardPurchasesPage() {
                 <div className="space-y-2 border-t border-border pt-3">
                   <div className="db-section-label">Line Items</div>
                   {form.items.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-2 p-2 bg-muted rounded-lg border border-border text-xs">
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-2 p-2 bg-muted rounded-lg border border-border text-xs"
+                    >
                       <span className="font-bold text-ink flex-1 truncate">{item.product_name}</span>
                       <div className="flex items-center gap-2">
                         <input
@@ -319,7 +351,10 @@ function DashboardPurchasesPage() {
                           value={item.qty_ordered}
                           onChange={(e) => {
                             const q = parseInt(e.target.value) || 1;
-                            setForm((prev) => ({ ...prev, items: prev.items.map((it, i) => i === idx ? { ...it, qty_ordered: q } : it) }));
+                            setForm((prev) => ({
+                              ...prev,
+                              items: prev.items.map((it, i) => (i === idx ? { ...it, qty_ordered: q } : it)),
+                            }));
                           }}
                           className="w-16 px-2 py-1 bg-background border border-border rounded text-xs font-bold text-center"
                         />
@@ -330,11 +365,20 @@ function DashboardPurchasesPage() {
                           value={(item.unit_cost_pence / 100).toFixed(2)}
                           onChange={(e) => {
                             const c = Math.round((parseFloat(e.target.value) || 0) * 100);
-                            setForm((prev) => ({ ...prev, items: prev.items.map((it, i) => i === idx ? { ...it, unit_cost_pence: c } : it) }));
+                            setForm((prev) => ({
+                              ...prev,
+                              items: prev.items.map((it, i) =>
+                                i === idx ? { ...it, unit_cost_pence: c } : it
+                              ),
+                            }));
                           }}
                           className="w-20 px-2 py-1 bg-background border border-border rounded text-xs font-bold text-right"
                         />
-                        <button type="button" onClick={() => handleRemoveItem(idx)} className="text-destructive hover:text-destructive/80 p-1">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          className="text-destructive hover:text-destructive/80 p-1 cursor-pointer"
+                        >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -345,12 +389,27 @@ function DashboardPurchasesPage() {
 
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1">Notes / Tracking</label>
-                <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="db-input" />
+                <textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="db-input"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setModalOpen(false)} className="btn-outline !py-2 !px-4 !text-xs">Cancel</button>
-                <button type="submit" disabled={submitting} className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-60">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="btn-outline !py-2 !px-4 !text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-60 cursor-pointer"
+                >
                   {submitting ? "Creating…" : "Create Purchase Order"}
                 </button>
               </div>

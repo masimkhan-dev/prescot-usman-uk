@@ -1,834 +1,474 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  listRepairs,
-  saveRepair,
-  updateRepairStatus,
-  recordRepairPayment,
-  getRepairDetail,
-  issueRepairParts,
-  returnRepairParts,
-  listTechnicians,
-} from "@/lib/repairs.functions";
-import { listCustomers } from "@/lib/customers.functions";
-import { listAllActiveProducts } from "@/lib/products.functions";
+import { listRepairs, getRepairMetrics } from "@/lib/repairs.functions";
 import { formatGBP } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import {
-  Loader2,
   Plus,
-  Eye,
-  X,
-  FileText,
-  CheckCircle2,
-  Clock,
   Wrench,
-  Shield,
-  AlertTriangle,
+  ShieldCheck,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
-import { InvoiceModal, type InvoiceData } from "@/components/dashboard/Invoice";
-import { toast } from "sonner";
+
+// Lazy load heavy modals to keep main page bundle lightweight
+const RepairIntakeModal = lazy(() =>
+  import("@/components/dashboard/RepairIntakeModal").then((m) => ({
+    default: m.RepairIntakeModal,
+  }))
+);
+const RepairWorkspaceModal = lazy(() =>
+  import("@/components/dashboard/RepairWorkspaceModal").then((m) => ({
+    default: m.RepairWorkspaceModal,
+  }))
+);
+const WarrantyClaimLookupModal = lazy(() =>
+  import("@/components/dashboard/WarrantyClaimLookupModal").then((m) => ({
+    default: m.WarrantyClaimLookupModal,
+  }))
+);
+const RepairIntakeReceipt = lazy(() =>
+  import("@/components/dashboard/RepairIntakeReceipt").then((m) => ({
+    default: m.RepairIntakeReceipt,
+  }))
+);
 
 export const Route = createFileRoute("/_authenticated/dashboard/repairs")({
   component: RepairsPage,
 });
 
-type RepairStatus =
-  "pending" | "assessed" | "in_progress" | "quality_check" | "ready" | "completed" | "cancelled";
-type RepairMethod = "walk-in" | "door-to-door" | "mail-in";
-
-const emptyRepair = {
-  customer_id: "",
-  device: "",
-  brand: "",
-  model: "",
-  imei: "",
-  serial_number: "",
-  issue: "",
-  method: "walk-in" as RepairMethod,
-  labourPounds: "",
-  totalPounds: "",
-  technician_id: "",
-  notes: "",
-};
-
 function RepairsPage() {
   const queryClient = useQueryClient();
   const listFn = useServerFn(listRepairs);
-  const saveFn = useServerFn(saveRepair);
-  const updateStatusFn = useServerFn(updateRepairStatus);
-  const recordPaymentFn = useServerFn(recordRepairPayment);
-  const getDetailFn = useServerFn(getRepairDetail);
-  const issuePartsFn = useServerFn(issueRepairParts);
-  const returnPartsFn = useServerFn(returnRepairParts);
-  const listTechsFn = useServerFn(listTechnicians);
-  const listCustsFn = useServerFn(listCustomers);
-  const listProdsFn = useServerFn(listAllActiveProducts);
+  const metricsFn = useServerFn(getRepairMetrics);
 
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 250);
   const [page, setPage] = useState(0);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
+  // Modals
+  const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+  const [claimLookupOpen, setClaimLookupOpen] = useState(false);
+  const [workspaceRepairId, setWorkspaceRepairId] = useState<string | null>(null);
+  const [intakeReceiptTicket, setIntakeReceiptTicket] = useState<any>(null);
+
+  // Map simplified tabs to backend status filter
+  let backendStatusFilter: string | null = null;
+  if (activeTab === "new") backendStatusFilter = "pending";
+  else if (activeTab === "working") backendStatusFilter = "in_progress";
+  else if (activeTab === "ready") backendStatusFilter = "ready";
+  else if (activeTab === "completed") backendStatusFilter = "completed";
+  else if (activeTab === "cancelled") backendStatusFilter = "cancelled";
+
+  // Query Repairs with debounced search
   const { data: repairsData, isLoading } = useQuery({
-    queryKey: ["repairs", statusFilter, searchQuery, page],
+    queryKey: ["repairs", activeTab, debouncedSearchQuery, page],
     queryFn: () =>
       listFn({
-        data: { status: statusFilter || null, search: searchQuery || null, page, limit: 25 },
+        data: {
+          status: backendStatusFilter as any,
+          search: debouncedSearchQuery || null,
+          page,
+          limit: 25,
+        },
       }),
+    staleTime: 1000 * 15,
   });
 
-  const { data: customersData } = useQuery({
-    queryKey: ["customers-dropdown"],
-    queryFn: () => listCustsFn({ data: { page: 0, limit: 100 } }),
+  // Query KPIs
+  const { data: metrics } = useQuery({
+    queryKey: ["repair-metrics"],
+    queryFn: () => metricsFn(),
+    staleTime: 1000 * 15,
   });
 
-  const { data: technicians } = useQuery({
-    queryKey: ["technicians"],
-    queryFn: () => listTechsFn(),
-  });
-
-  const { data: partsList } = useQuery({
-    queryKey: ["parts-dropdown"],
-    queryFn: () => listProdsFn({ data: {} }),
-  });
-
-  const [form, setForm] = useState({ ...emptyRepair });
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [invoiceModalData, setInvoiceModalData] = useState<InvoiceData | null>(null);
-  const [payModal, setPayModal] = useState<{
-    repairId: string;
-    repNumber: string;
-    totalPence: number;
-    paidPence: number;
-  } | null>(null);
-  const [payAmountPounds, setPayAmountPounds] = useState("");
-  const [payMethod, setPayMethod] = useState<"cash" | "card" | "bank_transfer">("cash");
-  const [paySubmitting, setPaySubmitting] = useState(false);
-  const [issuePartId, setIssuePartId] = useState("");
-  const [issuePartQty, setIssuePartQty] = useState(1);
-  const [issuingPart, setIssuingPart] = useState(false);
-
-  const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ["repair-detail", detailId],
-    queryFn: () => (detailId ? getDetailFn({ data: { id: detailId } }) : null),
-    enabled: !!detailId,
-  });
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.device.trim()) {
-      toast.error("Device Name is required (e.g. iPhone 13)");
-      return;
-    }
-    if (!form.issue.trim()) {
-      toast.error("Reported Fault / Issue is required");
-      return;
-    }
-
-    const labourPence = Math.round((parseFloat(form.labourPounds) || 0) * 100);
-    const totalPence = Math.round((parseFloat(form.totalPounds) || 0) * 100);
-
-    setFormSubmitting(true);
-    try {
-      const result = await saveFn({
-        data: {
-          customer_id: form.customer_id || null,
-          device: form.device.trim(),
-          brand: form.brand?.trim() || null,
-          model: form.model?.trim() || null,
-          imei: form.imei?.trim() || null,
-          serial_number: form.serial_number?.trim() || null,
-          issue: form.issue.trim(),
-          method: form.method,
-          labour_price_pence: labourPence,
-          total_price_pence: totalPence,
-          technician_id: form.technician_id || null,
-          notes: form.notes?.trim() || null,
-        },
-      });
-
-      toast.success(`Repair ticket #${result.rep_number} created successfully`);
-      setForm({ ...emptyRepair });
-      await queryClient.invalidateQueries({ queryKey: ["repairs"] });
-      await queryClient.refetchQueries({ queryKey: ["repairs"] });
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to create repair ticket");
-    } finally {
-      setFormSubmitting(false);
-    }
+  function refreshAll() {
+    queryClient.invalidateQueries({ queryKey: ["repairs"] });
+    queryClient.invalidateQueries({ queryKey: ["repair-metrics"] });
   }
 
-  async function handleStatusTransition(repairId: string, newStatus: RepairStatus) {
-    try {
-      await updateStatusFn({
-        data: {
-          repair_id: repairId,
-          new_status: newStatus,
-        },
-      });
-      toast.success(`Ticket status updated to ${newStatus}`);
-      queryClient.invalidateQueries({ queryKey: ["repairs"] });
-      if (detailId === repairId) {
-        queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Status update failed");
-    }
-  }
-
-  async function handleRecordPayment() {
-    if (!payModal) return;
-    const amountPence = Math.round(parseFloat(payAmountPounds) * 100);
-    if (isNaN(amountPence) || amountPence <= 0) {
-      toast.error("Please enter a valid positive payment amount");
-      return;
-    }
-
-    setPaySubmitting(true);
-    try {
-      await recordPaymentFn({
-        data: {
-          repair_id: payModal.repairId,
-          idempotency_key: crypto.randomUUID(),
-          amount_pence: amountPence,
-          method: payMethod,
-        },
-      });
-      toast.success("Payment recorded!");
-      setPayModal(null);
-      setPayAmountPounds("");
-      queryClient.invalidateQueries({ queryKey: ["repairs"] });
-      if (detailId === payModal.repairId) {
-        queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Payment recording failed");
-    } finally {
-      setPaySubmitting(false);
-    }
-  }
-
-  async function handleIssuePart() {
-    if (!detailId || !issuePartId || issuePartQty < 1) return;
-    setIssuingPart(true);
-    try {
-      await issuePartsFn({
-        data: {
-          repair_id: detailId,
-          parts: [{ product_id: issuePartId, quantity: issuePartQty }],
-        },
-      });
-      toast.success("Part issued to repair ticket");
-      setIssuePartId("");
-      setIssuePartQty(1);
-      queryClient.invalidateQueries({ queryKey: ["repair-detail", detailId] });
-      queryClient.invalidateQueries({ queryKey: ["parts-dropdown"] });
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to issue part");
-    } finally {
-      setIssuingPart(false);
-    }
-  }
-
-  const repairs = repairsData?.rows || [];
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, { bg: string; label: string }> = {
+      pending: { bg: "bg-blue-50 text-blue-700 border-blue-200", label: "New" },
+      assessed: { bg: "bg-blue-50 text-blue-700 border-blue-200", label: "Assessed" },
+      in_progress: { bg: "bg-amber-50 text-amber-700 border-amber-200", label: "Working" },
+      quality_check: { bg: "bg-purple-50 text-purple-700 border-purple-200", label: "Quality Check" },
+      ready: { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Ready" },
+      completed: { bg: "bg-slate-900 text-white border-slate-900", label: "Completed" },
+      cancelled: { bg: "bg-rose-50 text-rose-700 border-rose-200", label: "Cancelled" },
+    };
+    const s = map[status] || { bg: "bg-slate-100 text-slate-700", label: status };
+    return (
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[11px] font-extrabold capitalize ${s.bg}`}
+      >
+        {s.label}
+      </span>
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="db-page space-y-6">
+      {/* 1. HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A]">Repair Tickets Management</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Book device repairs, track IMEI & status workflow, issue parts, and collect payments.
-          </p>
-        </div>
-      </div>
-
-      {/* New Repair Intake Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3"
-      >
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-          Intake New Device Repair
-        </div>
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Customer (Optional)</label>
-            <select
-              value={form.customer_id}
-              onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-            >
-              <option value="">-- Select Existing Customer --</option>
-              {customersData?.rows.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.phone ? `(${c.phone})` : ""}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2">
+            <Wrench className="w-5 h-5 text-brand" />
+            <h1 className="db-page-title">Repair Tickets</h1>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Device Name *</label>
-            <input
-              type="text"
-              placeholder="e.g. iPhone 13 Pro"
-              value={form.device}
-              onChange={(e) => setForm({ ...form, device: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Brand</label>
-            <input
-              type="text"
-              placeholder="e.g. Apple / Samsung"
-              value={form.brand}
-              onChange={(e) => setForm({ ...form, brand: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">IMEI Number (15 Digits)</label>
-            <input
-              type="text"
-              placeholder="e.g. 352093081234567"
-              value={form.imei}
-              onChange={(e) => setForm({ ...form, imei: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 mb-1">Reported Fault / Issue *</label>
-            <input
-              type="text"
-              placeholder="e.g. Broken screen & battery replacement"
-              value={form.issue}
-              onChange={(e) => setForm({ ...form, issue: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Labour Charge (£)</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.labourPounds}
-              onChange={(e) => setForm({ ...form, labourPounds: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Estimated Total Quote (£)</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.totalPounds}
-              onChange={(e) => setForm({ ...form, totalPounds: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold focus:border-[#E11D48] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Assign Technician (Optional)</label>
-            <select
-              value={form.technician_id}
-              onChange={(e) => setForm({ ...form, technician_id: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-            >
-              <option value="">-- Choose Technician --</option>
-              {technicians?.map((t) => (
-                <option key={t.user_id} value={t.user_id}>
-                  {t.full_name || t.email}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Service Method</label>
-            <select
-              value={form.method}
-              onChange={(e) => setForm({ ...form, method: e.target.value as RepairMethod })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-            >
-              <option value="walk-in">Walk-in Store</option>
-              <option value="door-to-door">Door-to-door Collection</option>
-              <option value="mail-in">Mail-in Service</option>
-            </select>
-          </div>
+          <p className="db-page-subtitle">Book, track and complete repairs.</p>
         </div>
 
-        <div className="flex justify-end pt-1">
+        <div className="flex items-center gap-2">
+          <PageHelpButton
+            pageTitle="Repair Tickets"
+            pageKey="repairs"
+            steps={[
+              "New Repair — enter customer, device, fault and price.",
+              "Add Part / Work during repair if needed.",
+              "Add payments as deposit or installment.",
+              "Mark Ready when repair is finished.",
+              "Collect & Complete to finalize and print invoice.",
+            ]}
+            note="Warranty days are entered manually for each repair/part."
+            firstTimeTip="Tip: Book the repair first. You can add parts and payments later."
+          />
+
           <button
-            type="submit"
-            disabled={formSubmitting}
-            className="btn-primary !py-2 !px-5 !text-xs flex items-center gap-1.5 disabled:opacity-60"
+            onClick={() => setIntakeModalOpen(true)}
+            className="px-5 py-2.5 bg-brand hover:bg-brand/90 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer text-xs sm:text-sm min-h-[42px]"
           >
-            {formSubmitting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Plus className="w-3.5 h-3.5" />
-            )}
-            Book Repair Ticket
+            <Plus className="w-4 h-4 stroke-[3]" /> + New Repair
           </button>
-        </div>
-      </form>
 
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm text-xs">
-        <input
-          type="text"
-          placeholder="Search REP #, device name, or IMEI…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-[#E11D48]"
-        />
-
-        <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
-          {[
-            "",
-            "pending",
-            "assessed",
-            "in_progress",
-            "quality_check",
-            "ready",
-            "completed",
-            "cancelled",
-          ].map((st) => (
+          <div className="relative">
             <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 rounded-xl font-bold transition-all whitespace-nowrap capitalize ${
-                statusFilter === st
-                  ? "bg-[#0F172A] text-white"
-                  : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100"
-              }`}
+              onClick={() => setMoreActionsOpen(!moreActionsOpen)}
+              className="px-3.5 py-2.5 bg-muted/60 hover:bg-muted text-foreground font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer min-h-[42px] border border-border"
             >
-              {st === "" ? "All Tickets" : st.replace("_", " ")}
+              More <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
-          ))}
+
+            {moreActionsOpen && (
+              <div
+                className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-30 py-1 text-xs font-semibold animate-in fade-in zoom-in-95 duration-100"
+                onClick={() => setMoreActionsOpen(false)}
+              >
+                <button
+                  onClick={() => setClaimLookupOpen(true)}
+                  className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-foreground"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand" /> Warranty Lookup
+                </button>
+                <button
+                  onClick={() => setActiveTab("completed")}
+                  className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-foreground"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Completed Repairs
+                </button>
+                <button
+                  onClick={() => setActiveTab("cancelled")}
+                  className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-rose-600"
+                >
+                  Cancelled Repairs
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Repairs Table */}
+      {/* 2. SIMPLE REPAIR KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="db-card p-4 space-y-1">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+            New Today
+          </span>
+          <div className="font-extrabold text-2xl text-foreground font-mono">
+            {metrics?.todayCount ?? 0}
+          </div>
+        </div>
+
+        <div className="db-card p-4 space-y-1 bg-amber-50/40 border-amber-200">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 block">
+            Working
+          </span>
+          <div className="font-extrabold text-2xl text-amber-950 font-mono">
+            {metrics?.inProgressCount ?? 0}
+          </div>
+        </div>
+
+        <div className="db-card p-4 space-y-1 bg-emerald-50/40 border-emerald-200">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 block">
+            Ready
+          </span>
+          <div className="font-extrabold text-2xl text-emerald-950 font-mono">
+            {metrics?.readyCount ?? 0}
+          </div>
+        </div>
+
+        <div className="db-card p-4 space-y-1 bg-rose-50/40 border-rose-200">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 block">
+            Outstanding Due
+          </span>
+          <div className="font-extrabold text-2xl text-rose-950 font-mono">
+            {formatGBP((metrics?.totalDuePence ?? 0) / 100)}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. SEARCH & PROMINENT FILTERS */}
+      <div className="db-card p-3.5 space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search name, phone, REP #, device or IMEI..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(0);
+              }}
+              className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+            />
+          </div>
+
+          {/* Clean Filters: All | New | Working | Ready | Completed */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: "all", label: "All" },
+              { id: "new", label: "New" },
+              { id: "working", label: "Working" },
+              { id: "ready", label: "Ready" },
+              { id: "completed", label: "Completed" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setActiveTab(t.id);
+                  setPage(0);
+                }}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                  activeTab === t.id
+                    ? "bg-brand text-white shadow-xs"
+                    : "bg-muted/40 hover:bg-muted text-muted-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. REPAIR TICKET LIST */}
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-[#E11D48]" />
+        <div className="db-card p-4">
+          <TableSkeleton rows={6} cols={7} />
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[10px] border-b border-slate-200">
+        <div className="db-card !p-0 overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="db-table min-w-[700px]">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3">REP Ticket #</th>
-                  <th className="px-4 py-3">Device & Fault</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Total Quote</th>
-                  <th className="px-4 py-3 text-right">Paid</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="db-th">Repair #</th>
+                  <th className="db-th">Customer / Device</th>
+                  <th className="db-th">Fault</th>
+                  <th className="db-th">Status</th>
+                  <th className="db-th text-right">Total</th>
+                  <th className="db-th text-right">Due</th>
+                  <th className="db-th text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {repairs.map((r) => {
-                  const isFullyPaid =
-                    r.amount_paid_pence >= r.total_price_pence && r.total_price_pence > 0;
-                  return (
-                    <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900">
-                        {r.rep_number}
-                        {r.warranty_until && (
-                          <div className="text-[9px] text-emerald-700 font-sans font-semibold flex items-center gap-0.5">
-                            <Shield className="w-2.5 h-2.5" /> War: {r.warranty_until}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-slate-900">{r.device}</div>
-                        <div className="text-[10px] text-slate-500 max-w-xs truncate">
-                          {r.issue}
-                        </div>
-                        {r.imei && (
-                          <div className="text-[9px] font-mono text-slate-400">IMEI: {r.imei}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-700">
-                        {(r.customers as { name: string } | null)?.name || "Walk-in"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold capitalize ${
-                            r.status === "completed"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : r.status === "cancelled"
-                                ? "bg-rose-100 text-rose-800"
-                                : r.status === "ready"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {r.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-bold font-mono">
-                        {formatGBP((r.total_price_pence ?? 0) / 100)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono">
-                        <span
-                          className={
-                            isFullyPaid
-                              ? "font-bold text-emerald-600"
-                              : "text-amber-600 font-semibold"
-                          }
-                        >
-                          {formatGBP((r.amount_paid_pence ?? 0) / 100)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right space-x-1.5 flex items-center justify-end">
-                        {r.status !== "ready" && r.status !== "completed" && r.status !== "cancelled" && (
+              <tbody>
+                {repairsData?.rows && repairsData.rows.length > 0 ? (
+                  repairsData.rows.map((r: any) => {
+                    const quotePence = r.total_price_pence || 0;
+                    const paidPence = r.amount_paid_pence || 0;
+                    const duePence = Math.max(0, quotePence - paidPence);
+
+                    return (
+                      <tr key={r.id} className="db-tr-hover">
+                        <td className="db-td font-extrabold font-mono text-brand">
+                          {r.rep_number}
+                        </td>
+                        <td className="db-td">
+                          <span className="font-bold text-foreground block">
+                            {r.customers?.name || "Walk-In"}
+                          </span>
+                          <span className="text-xs text-muted-foreground block">{r.device}</span>
+                        </td>
+                        <td className="db-td max-w-xs truncate text-muted-foreground">{r.issue}</td>
+                        <td className="db-td">{getStatusBadge(r.status)}</td>
+                        <td className="db-td text-right font-extrabold font-mono text-foreground">
+                          {formatGBP(quotePence / 100)}
+                        </td>
+                        <td className="db-td text-right font-bold font-mono">
+                          {duePence > 0 ? (
+                            <span className="text-rose-600">{formatGBP(duePence / 100)}</span>
+                          ) : (
+                            <span className="text-emerald-600">PAID</span>
+                          )}
+                        </td>
+                        <td className="db-td text-right">
                           <button
-                            type="button"
-                            onClick={() => handleStatusTransition(r.id, "ready")}
-                            className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[10px] font-bold transition-colors"
+                            onClick={() => setWorkspaceRepairId(r.id)}
+                            className="px-3.5 py-1.5 bg-brand/10 hover:bg-brand/20 text-brand font-extrabold rounded-xl text-xs transition-colors cursor-pointer min-h-[36px] ml-auto inline-flex items-center gap-1"
                           >
-                            Mark Ready
+                            Open <ChevronRight className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                        {r.status === "ready" && (
-                          <button
-                            type="button"
-                            onClick={() => handleStatusTransition(r.id, "completed")}
-                            className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1"
-                          >
-                            <CheckCircle2 className="w-3 h-3" /> Mark Completed
-                          </button>
-                        )}
-                        {!isFullyPaid && r.status !== "cancelled" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPayModal({
-                                repairId: r.id,
-                                repNumber: r.rep_number ?? `REP-${r.id.slice(0, 8).toUpperCase()}`,
-                                totalPence: r.total_price_pence,
-                                paidPence: r.amount_paid_pence,
-                              });
-                              setPayAmountPounds(
-                                ((r.total_price_pence - r.amount_paid_pence) / 100).toFixed(2),
-                              );
-                            }}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-colors"
-                          >
-                            Pay
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setDetailId(r.id)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700 transition-colors"
-                        >
-                          Details
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {repairs.length === 0 && (
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
-                      No repair tickets found.
+                    <td colSpan={7}>
+                      <EmptyState
+                        title="No repair tickets found"
+                        description="Try adjusting your search query or filter tab."
+                        actionLabel="+ Book First Repair"
+                        onAction={() => setIntakeModalOpen(true)}
+                      />
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {/* Repair Ticket Detail & Status Control Modal */}
-      {detailId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-5 max-w-xl w-full max-h-[85vh] overflow-auto space-y-4 shadow-xl">
-            {detailLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-7 h-7 animate-spin text-brand" />
-              </div>
-            ) : detailData ? (<>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">
-                  Ticket #{detailData.rep_number} — {detailData.device}
-                </h3>
-                <p className="text-[10px] text-slate-500">
-                  Status: <strong className="capitalize">{detailData.status}</strong>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailId(null)}
-                className="p-1 hover:bg-slate-100 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+          {/* Mobile Compact Cards View */}
+          <div className="sm:hidden divide-y divide-border">
+            {repairsData?.rows && repairsData.rows.length > 0 ? (
+              repairsData.rows.map((r: any) => {
+                const quotePence = r.total_price_pence || 0;
+                const paidPence = r.amount_paid_pence || 0;
+                const duePence = Math.max(0, quotePence - paidPence);
 
-            {/* Controlled Status Transitions */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="text-[11px] font-bold text-slate-700">Update Ticket Status:</div>
-              <div className="flex flex-wrap gap-1.5">
-                {detailData.status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "assessed")}
-                    className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Mark Assessed
-                  </button>
-                )}
-                {detailData.status === "assessed" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "in_progress")}
-                    className="px-2.5 py-1 bg-amber-600 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Start Repair
-                  </button>
-                )}
-                {detailData.status === "in_progress" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "quality_check")}
-                    className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Move to Quality Check
-                  </button>
-                )}
-                {detailData.status === "quality_check" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "ready")}
-                    className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Mark Ready for Pickup
-                  </button>
-                )}
-                {detailData.status === "ready" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "completed")}
-                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Complete & Handover
-                  </button>
-                )}
-                {detailData.status !== "completed" && detailData.status !== "cancelled" && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusTransition(detailData.id, "cancelled")}
-                    className="px-2.5 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-bold"
-                  >
-                    Cancel Repair
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Issued Parts List */}
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-slate-800">Replacement Parts Issued:</div>
-              {(detailData.repair_parts ?? []).length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic">
-                  No parts issued to this repair ticket yet.
-                </p>
-              ) : (
-                <ul className="divide-y divide-slate-100 text-xs">
-                  {detailData.repair_parts.map((part) => (
-                    <li key={part.id} className="py-1.5 flex justify-between">
-                      <span>
-                        {part.product_name} × {part.quantity}
+                return (
+                  <div key={r.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-brand font-mono text-xs">
+                        {r.rep_number}
                       </span>
-                      <span className="font-mono">
-                        {formatGBP((part.unit_cost_pence * part.quantity) / 100)}
+                      {getStatusBadge(r.status)}
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-foreground block">
+                        {r.customers?.name || "Walk-In"}
                       </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Issue Part Form — only for active repairs */}
-            {detailData.status !== "completed" && detailData.status !== "cancelled" && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-                <div className="text-[11px] font-bold text-amber-900">Issue Replacement Part:</div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select
-                    value={issuePartId}
-                    onChange={(e) => setIssuePartId(e.target.value)}
-                    className="flex-1 min-w-[160px] px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-semibold outline-none focus:border-amber-500"
-                  >
-                    <option value="">— Select Part —</option>
-                    {(partsList ?? [])
-                      .filter((p) => p.type === "part")
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (Stock: {p.stock_quantity})
-                        </option>
-                      ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    value={issuePartQty}
-                    onChange={(e) => setIssuePartQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 px-2.5 py-1.5 border border-amber-300 bg-white rounded-lg text-xs font-bold text-center outline-none focus:border-amber-500"
-                    aria-label="Part quantity"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleIssuePart}
-                    disabled={!issuePartId || issuingPart}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {issuingPart ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wrench className="w-3 h-3" />}
-                    Issue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Print Repair Receipt Button */}
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setInvoiceModalData({
-                    kind: "repair",
-                    number:
-                      detailData.rep_number ?? `REP-${detailData.id.slice(0, 8).toUpperCase()}`,
-                    date: new Date(detailData.created_at).toLocaleString("en-GB"),
-                    customer: detailData.customers,
-                    lines: (detailData.repair_parts ?? []).map((part) => ({
-                      name: part.product_name,
-                      quantity: part.quantity,
-                      unit_price: part.unit_cost_pence / 100,
-                      total: (part.unit_cost_pence * part.quantity) / 100,
-                    })),
-                    labour: (detailData.labour_price_pence ?? 0) / 100,
-                    total: (detailData.total_price_pence ?? 0) / 100,
-                    paid: detailData.amount_paid_pence >= detailData.total_price_pence,
-                    warrantyUntil: detailData.warranty_until,
-                    device: detailData.device,
-                    issue: detailData.issue,
-                  });
-                }}
-                className="btn-primary !py-1.5 !px-3 !text-xs flex items-center gap-1"
-              >
-                <FileText className="w-3.5 h-3.5" /> Print Repair Invoice
-              </button>
-            </div>
-          </>) : (
-            <div className="py-8 text-center text-slate-400 text-sm">Could not load ticket.</div>
-          )}
-          <button
-            type="button"
-            onClick={() => setDetailId(null)}
-            className="absolute top-4 right-4 p-1 hover:bg-slate-100 rounded-lg"
-            aria-label="Close detail panel"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          </div>
-        </div>
-      )}
-
-      {/* Record Payment Modal */}
-      {payModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl">
-            <h3 className="font-extrabold text-slate-900 text-sm">
-              Record Payment — #{payModal.repNumber}
-            </h3>
-            <div className="text-xs text-slate-600 space-y-1">
-              <div>
-                Total Quote: <strong>{formatGBP(payModal.totalPence / 100)}</strong>
-              </div>
-              <div>
-                Already Paid: <strong>{formatGBP(payModal.paidPence / 100)}</strong>
-              </div>
-              <div>
-                Remaining Due:{" "}
-                <strong className="text-rose-600">
-                  {formatGBP((payModal.totalPence - payModal.paidPence) / 100)}
-                </strong>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Amount to Pay (£)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={payAmountPounds}
-                onChange={(e) => setPayAmountPounds(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#E11D48]"
+                      <span className="text-xs text-foreground/80 font-medium block">
+                        {r.device} • {r.issue}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <div className="space-x-2 font-mono">
+                        <span className="text-muted-foreground">Total: {formatGBP(quotePence / 100)}</span>
+                        <span className={duePence > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>
+                          Due: {duePence > 0 ? formatGBP(duePence / 100) : "PAID"}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setWorkspaceRepairId(r.id)}
+                        className="px-3 py-1 bg-brand text-white font-bold rounded-lg text-xs cursor-pointer"
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <EmptyState
+                title="No repair tickets found"
+                description="Try adjusting your search query or filter tab."
+                actionLabel="+ Book First Repair"
+                onAction={() => setIntakeModalOpen(true)}
               />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
-              <select
-                value={payMethod}
-                onChange={(e) => setPayMethod(e.target.value as "cash" | "card" | "bank_transfer")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-[#E11D48] bg-white"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="bank_transfer">Bank Transfer</option>
-              </select>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setPayModal(null)}
-                className="btn-outline !py-1.5 !px-3 !text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleRecordPayment}
-                disabled={paySubmitting}
-                className="btn-primary !py-1.5 !px-4 !text-xs disabled:opacity-60 flex items-center gap-1.5"
-              >
-                {paySubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                Confirm Payment
-              </button>
-            </div>
+            )}
           </div>
+
+          {/* Pagination */}
+          {repairsData && repairsData.total > 25 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              <span>
+                Showing {page * 25 + 1}–{Math.min((page + 1) * 25, repairsData.total)} of{" "}
+                {repairsData.total} tickets
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1 bg-muted hover:bg-border rounded-lg disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={(page + 1) * 25 >= repairsData.total}
+                  className="px-3 py-1 bg-muted hover:bg-border rounded-lg disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Invoice Modal */}
-      {invoiceModalData && (
-        <InvoiceModal data={invoiceModalData} onClose={() => setInvoiceModalData(null)} />
-      )}
+      {/* LAZY LOADED MODALS */}
+      <Suspense fallback={null}>
+        {intakeModalOpen && (
+          <RepairIntakeModal
+            isOpen={intakeModalOpen}
+            onClose={() => setIntakeModalOpen(false)}
+            onSuccess={(ticket) => {
+              refreshAll();
+              setIntakeReceiptTicket(ticket);
+            }}
+          />
+        )}
+
+        {intakeReceiptTicket && (
+          <RepairIntakeReceipt
+            isOpen={!!intakeReceiptTicket}
+            onClose={() => setIntakeReceiptTicket(null)}
+            onOpenWorkspace={(ticketId) => {
+              setIntakeReceiptTicket(null);
+              setWorkspaceRepairId(ticketId);
+            }}
+            ticket={intakeReceiptTicket}
+          />
+        )}
+
+        {claimLookupOpen && (
+          <WarrantyClaimLookupModal
+            isOpen={claimLookupOpen}
+            onClose={() => setClaimLookupOpen(false)}
+          />
+        )}
+
+        {workspaceRepairId && (
+          <RepairWorkspaceModal
+            isOpen={!!workspaceRepairId}
+            onClose={() => setWorkspaceRepairId(null)}
+            repairId={workspaceRepairId}
+            onUpdated={refreshAll}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

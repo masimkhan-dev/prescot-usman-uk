@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { BUSINESS } from "@/lib/business";
 import { formatGBP } from "@/lib/utils";
-import { Printer, MessageCircle, Download, X, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
+import {
+  Printer,
+  MessageCircle,
+  Download,
+  X,
+  Loader2,
+  CheckCircle2,
+  ShieldCheck,
+  FileText,
+  Receipt,
+  ExternalLink,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSettings } from "@/lib/settings.functions";
@@ -13,6 +24,7 @@ export interface InvoiceLine {
   quantity: number;
   unit_price: number;
   total: number;
+  warranty_days?: number | null;
 }
 
 export interface InvoiceData {
@@ -41,6 +53,7 @@ export function InvoiceModal({
   data: InvoiceData;
   onClose: () => void;
 }) {
+  const [viewMode, setViewMode] = useState<"a4" | "thermal">("a4");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSharingWA, setIsSharingWA] = useState(false);
 
@@ -123,7 +136,6 @@ export function InvoiceModal({
         });
         toast.success("Receipt shared via WhatsApp!");
       } else {
-        // Fallback for desktop browsers: Download PDF & open WhatsApp Web with message
         const url = URL.createObjectURL(file);
         const link = document.createElement("a");
         link.href = url;
@@ -157,40 +169,61 @@ export function InvoiceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 print:static print:bg-white print:p-0">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none">
-        
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:static print:bg-white print:p-0 print-modal-overlay">
+      <div
+        className={`bg-white rounded-2xl w-full max-h-[94vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print-modal-card ${
+          viewMode === "a4" ? "max-w-4xl" : "max-w-md"
+        }`}
+      >
         {/* Header Toolbar (Screen Only) */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80 print:hidden shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-slate-900 text-sm tracking-tight">
-                {invoice.kind === "sale" ? "Sales Receipt" : "Repair Invoice"}
-              </h3>
-              <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 font-mono text-[11px] font-bold">
-                #{invoice.number}
-              </span>
+        <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-100 bg-slate-900 text-white print:hidden shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+              <button
+                type="button"
+                onClick={() => setViewMode("a4")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "a4"
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" /> A4 Sales Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("thermal")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "thermal"
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Receipt className="w-3.5 h-3.5" /> Thermal 80mm
+              </button>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{invoice.date}</p>
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono text-[11px] font-bold border border-slate-700">
+              #{invoice.number}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Action Buttons Toolbar (Screen Only) */}
-        <div className="p-3 bg-slate-900 text-white flex items-center gap-2 print:hidden shrink-0 flex-wrap sm:flex-nowrap">
+        <div className="p-3 bg-slate-800 border-b border-slate-700 text-white flex items-center gap-2 print:hidden shrink-0 flex-wrap">
           <button
             type="button"
             onClick={handleWhatsApp}
             disabled={isSharingWA || isGeneratingPDF}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
           >
             {isSharingWA ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -204,7 +237,7 @@ export function InvoiceModal({
             type="button"
             onClick={handleDownloadPDF}
             disabled={isGeneratingPDF || isSharingWA}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -217,54 +250,143 @@ export function InvoiceModal({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.98] transition-all"
+            className="min-h-[38px] inline-flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-brand hover:bg-brand/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
           >
             <Printer className="w-3.5 h-3.5" />
-            Thermal Print
+            {viewMode === "a4" ? "Print A4 Invoice" : "Thermal Print"}
           </button>
         </div>
 
-        {/* Receipt Content Body */}
-        <div className="p-6 overflow-y-auto print:p-0 print:overflow-visible" id="invoice-print-area">
-          <InvoiceBody
-            invoice={invoice}
-            businessName={businessName}
-            addressLine={addressLine}
-            phone={phone}
-            email={email}
-            footer={footer}
-            vatRegistered={vatRegistered}
-            vatNumber={vatNumber}
-            subtotal={subtotal}
-            discount={discount}
-            grandTotal={grandTotal}
-            amountPaid={amountPaid}
-            balanceDue={balanceDue}
-            isPaidInFull={isPaidInFull}
-          />
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible printable-a4-area">
+          {viewMode === "a4" ? (
+            /* PROFESSIONAL A4 SALES INVOICE */
+            <A4SalesInvoiceBody
+              invoice={invoice}
+              businessName={businessName}
+              addressLine={addressLine}
+              phone={phone}
+              email={email}
+              footer={footer}
+              vatRegistered={vatRegistered}
+              vatNumber={vatNumber}
+              subtotal={subtotal}
+              discount={discount}
+              grandTotal={grandTotal}
+              amountPaid={amountPaid}
+              balanceDue={balanceDue}
+              isPaidInFull={isPaidInFull}
+            />
+          ) : (
+            /* THERMAL 80MM RECEIPT PREVIEW */
+            <div
+              className="bg-white p-5 rounded-xl border border-slate-300 shadow-md max-w-sm mx-auto"
+              id="thermal-receipt-area"
+            >
+              <InvoiceBody
+                invoice={invoice}
+                businessName={businessName}
+                addressLine={addressLine}
+                phone={phone}
+                email={email}
+                footer={footer}
+                vatRegistered={vatRegistered}
+                vatNumber={vatNumber}
+                subtotal={subtotal}
+                discount={discount}
+                grandTotal={grandTotal}
+                amountPaid={amountPaid}
+                balanceDue={balanceDue}
+                isPaidInFull={isPaidInFull}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* High Precision 80mm Print CSS */}
+      {/* DUAL PRINT CSS ENGINE */}
       <style>{`
         @media print {
           @page {
-            size: 80mm auto;
-            margin: 0mm;
+            size: ${viewMode === "a4" ? "A4 portrait" : "80mm auto"};
+            margin: ${viewMode === "a4" ? "6mm 8mm" : "0mm"};
           }
           html, body {
             background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 80mm !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print\\:hidden {
+            display: none !important;
           }
           body * {
             visibility: hidden !important;
           }
-          #invoice-print-area, #invoice-print-area * {
+          .print-modal-overlay,
+          .print-modal-overlay *,
+          .print-modal-card,
+          .print-modal-card *,
+          .printable-a4-area,
+          .printable-a4-area *,
+          .a4-sheet-page,
+          .a4-sheet-page *,
+          #thermal-receipt-area,
+          #thermal-receipt-area * {
             visibility: visible !important;
           }
-          #invoice-print-area {
+          .print-modal-overlay {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+          .print-modal-card {
+            position: static !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            overflow: visible !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .printable-a4-area {
+            position: static !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            width: 100% !important;
+            display: block !important;
+          }
+          .a4-sheet-page {
+            display: block !important;
+            width: 190mm !important;
+            box-sizing: border-box !important;
+            margin: 0 auto !important;
+            padding: 5mm 6mm !important;
+            background: #ffffff !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          #thermal-receipt-area {
             position: fixed !important;
             left: 0 !important;
             top: 0 !important;
@@ -281,15 +403,281 @@ export function InvoiceModal({
             line-height: 1.3 !important;
             overflow: visible !important;
           }
-          .print\\:hidden {
-            display: none !important;
-          }
         }
       `}</style>
     </div>
   );
 }
 
+{/* PROFESSIONAL A4 SALES INVOICE COMPONENT */}
+function A4SalesInvoiceBody({
+  invoice,
+  businessName,
+  addressLine,
+  phone,
+  email,
+  vatRegistered,
+  vatNumber,
+  subtotal,
+  discount,
+  grandTotal,
+  amountPaid,
+  balanceDue,
+  isPaidInFull,
+}: {
+  invoice: InvoiceData;
+  businessName: string;
+  addressLine: string;
+  phone: string;
+  email: string;
+  footer: string;
+  vatRegistered: boolean;
+  vatNumber: string;
+  subtotal: number;
+  discount: number;
+  grandTotal: number;
+  amountPaid: number;
+  balanceDue: number;
+  isPaidInFull: boolean;
+}) {
+  const hasWarrantyNotes =
+    invoice.warrantyUntil || invoice.lines.some((l) => l.warranty_days && l.warranty_days > 0);
+
+  return (
+    <div className="bg-white border border-slate-300 shadow-lg p-5 sm:p-6 rounded-xl max-w-3xl mx-auto space-y-3.5 text-slate-900 font-sans a4-sheet-page">
+      {/* 1. STORE HEADER & LOGO */}
+      <div className="flex justify-between items-start pb-2.5 border-b-2 border-slate-900 gap-4">
+        <div className="space-y-0.5">
+          <h1 className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">
+            {businessName.toUpperCase()}
+          </h1>
+          <p className="text-xs text-slate-700 font-medium">{addressLine}</p>
+          <p className="text-xs text-slate-700 font-medium">
+            Tel: {phone} | Mob: 07479 385163
+          </p>
+          <p className="text-xs text-slate-600 font-mono">
+            {email} | www.prescotmobiles.co.uk
+          </p>
+          {vatRegistered && vatNumber && (
+            <p className="text-xs font-bold text-slate-800">VAT Reg: {vatNumber}</p>
+          )}
+        </div>
+
+        <div className="text-right shrink-0 flex flex-col items-end">
+          <img
+            src="/site-assets/prescot-logo.png"
+            alt="Prescot Mobile Shop Logo"
+            className="h-18 sm:h-20 w-auto object-contain"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 2. DOCUMENT TITLE & INFO BAR */}
+      <div className="flex items-center justify-between gap-2 pt-0.5 font-mono text-xs border-b border-slate-300 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-600">INVOICE NO:</span>
+          <span className="font-extrabold text-sm text-brand">{invoice.number}</span>
+        </div>
+        <div className="text-center font-black text-sm sm:text-base tracking-widest text-slate-900 uppercase">
+          SALES INVOICE / RECEIPT
+        </div>
+        <div className="flex items-center gap-2 text-right">
+          <span className="font-bold text-slate-600">DATE:</span>
+          <span className="font-extrabold text-slate-900">{invoice.date}</span>
+        </div>
+      </div>
+
+      {/* 3. CUSTOMER DETAILS BOX */}
+      <div className="border border-slate-900 rounded-lg p-3 space-y-1 text-xs bg-slate-50/50">
+        <div className="font-bold text-[10px] text-slate-500 uppercase tracking-wider underline mb-0.5">
+          CUSTOMER DETAILS
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="font-bold text-slate-700">CUSTOMER: </span>
+            <span className="font-extrabold text-slate-900 text-sm">
+              {invoice.customer?.name || "Walk-in Customer"}
+            </span>
+          </div>
+          <div>
+            <span className="font-bold text-slate-700">CONTACT: </span>
+            <span className="font-extrabold font-mono text-slate-900">
+              {invoice.customer?.phone || invoice.customer?.email || "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. ITEMS TABLE */}
+      <div className="border border-slate-900 rounded-lg p-3.5 space-y-2.5 text-xs">
+        <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-wider block">
+          PURCHASED ITEMS SUMMARY:
+        </span>
+        <table className="w-full text-left text-xs border border-slate-300 rounded-md overflow-hidden">
+          <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+            <tr>
+              <th className="py-2 px-3">Item / Service Description</th>
+              <th className="py-2 px-3 text-center w-16">Qty</th>
+              <th className="py-2 px-3 text-right w-24">Unit Price</th>
+              <th className="py-2 px-3 text-right w-24">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {invoice.lines.map((l, i) => (
+              <tr key={i}>
+                <td className="py-2 px-3 font-semibold text-slate-900">{l.name}</td>
+                <td className="py-2 px-3 text-center font-mono font-bold text-slate-700">
+                  {l.quantity}
+                </td>
+                <td className="py-2 px-3 text-right font-mono text-slate-700">
+                  {formatGBP(l.unit_price)}
+                </td>
+                <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                  {formatGBP(l.total)}
+                </td>
+              </tr>
+            ))}
+            {invoice.labour && invoice.labour > 0 ? (
+              <tr className="font-bold text-slate-900">
+                <td className="py-2 px-3" colSpan={3}>
+                  Labour / Service Charge
+                </td>
+                <td className="py-2 px-3 text-right font-mono">{formatGBP(invoice.labour)}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+
+        {/* Totals & Payment Breakdown */}
+        <div className="flex justify-between items-end pt-2 border-t border-slate-300">
+          <div>
+            {isPaidInFull ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-xs uppercase tracking-wider">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" /> PAID IN FULL
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs uppercase tracking-wider">
+                PAYMENT PENDING
+              </div>
+            )}
+          </div>
+
+          <div className="w-56 space-y-1 text-xs font-mono">
+            <div className="flex justify-between text-slate-700">
+              <span>SUBTOTAL:</span>
+              <span className="font-bold">{formatGBP(subtotal)}</span>
+            </div>
+
+            {discount > 0 && (
+              <div className="flex justify-between text-rose-600 font-bold">
+                <span>DISCOUNT:</span>
+                <span>−{formatGBP(discount)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-slate-900 font-black border-t border-slate-300 pt-1 text-sm">
+              <span>TOTAL:</span>
+              <span>{formatGBP(grandTotal)}</span>
+            </div>
+
+            <div className="flex justify-between text-slate-700 pt-0.5">
+              <span>PAYMENT METHOD:</span>
+              <span className="font-bold uppercase">
+                {(invoice.paymentMethod || "Cash").replace("_", " ")}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-slate-700">
+              <span>AMOUNT PAID:</span>
+              <span className="font-bold">{formatGBP(amountPaid)}</span>
+            </div>
+
+            <div className="flex justify-between font-extrabold text-sm border-t border-slate-400 pt-1 text-slate-900">
+              <span>BALANCE DUE:</span>
+              <span className={balanceDue > 0 ? "text-brand" : "text-emerald-700"}>
+                {formatGBP(balanceDue)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. WARRANTY NOTES SECTION (IF APPLICABLE) */}
+      {hasWarrantyNotes && (
+        <div className="border border-slate-300 rounded-lg p-3 bg-slate-50/70 text-[9.5px] leading-relaxed text-slate-700 space-y-1">
+          <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-0.5 mb-1 flex items-center gap-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-brand" /> WARRANTY COVERAGE NOTES
+          </div>
+          <ul className="list-disc list-inside space-y-0.5 text-[9.5px] text-slate-700">
+            {invoice.lines.map((l, i) =>
+              l.warranty_days && l.warranty_days > 0 ? (
+                <li key={i} className="font-semibold">
+                  <span className="font-extrabold text-slate-900">{l.name}:</span>{" "}
+                  {l.warranty_days} Days Warranty
+                </li>
+              ) : null
+            )}
+            {invoice.warrantyUntil && (
+              <li className="font-semibold text-emerald-800">
+                General Store Guarantee valid until {invoice.warrantyUntil}.
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {/* 6. TWO-COLUMN FOOTER: STORE POLICY & GOOGLE REVIEW QR */}
+      <div className="pt-2 border-t border-slate-200 flex flex-row items-center justify-between gap-4">
+        {/* Left Column: Store Disclaimer & Website Link */}
+        <div className="text-left text-[10px] text-slate-700 font-medium space-y-0.5">
+          <p className="font-bold text-slate-900 text-xs">
+            Thank you for choosing Prescot Mobiles!
+          </p>
+          <p className="text-[10px] text-slate-600 font-semibold">
+            Mobile • Laptop • Tablet • Gaming • Repairs &amp; Accessories
+          </p>
+          <p className="text-[9.5px] text-slate-500 italic">
+            Keep this invoice as official proof of purchase.
+          </p>
+          <div className="pt-1">
+            <a
+              href="https://www.prescotmobiles.co.uk"
+              target="_blank"
+              rel="noreferrer"
+              className="font-extrabold text-brand hover:underline inline-flex items-center gap-0.5 text-xs"
+            >
+              www.prescotmobiles.co.uk
+              <ExternalLink className="w-3.5 h-3.5 print:hidden text-brand" />
+            </a>
+          </div>
+        </div>
+
+        {/* Right Column: Google Review QR Code Block */}
+        <div className="flex flex-col items-center justify-center text-center space-y-0.5 shrink-0 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+          <span className="font-extrabold text-[8.5px] uppercase tracking-wider text-slate-800">
+            SHARE YOUR EXPERIENCE
+          </span>
+          <img
+            src="/site-assets/google-review-qr.png"
+            alt="Scan to leave Prescot Mobiles a Google review"
+            className="w-[80px] h-[80px] object-contain bg-white p-0.5 rounded border border-slate-200 aspect-square"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
+          />
+          <span className="text-[8px] font-semibold text-slate-600">
+            Scan to leave us a review on Google
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+{/* THERMAL 80MM RECEIPT BODY */}
 function InvoiceBody({
   invoice,
   businessName,
@@ -323,9 +711,16 @@ function InvoiceBody({
 }) {
   return (
     <div className="text-xs text-slate-900 space-y-4 font-sans print:font-mono">
-      
       {/* Store Branding Header */}
       <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300 print:border-black">
+        <img
+          src="/site-assets/prescot-logo.png"
+          alt="Prescot Mobiles Logo"
+          className="h-10 w-auto object-contain mx-auto mb-1"
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
+        />
         <h2 className="text-base font-black tracking-tight uppercase text-slate-950 print:text-black">
           {businessName}
         </h2>
@@ -335,7 +730,9 @@ function InvoiceBody({
         </p>
         <p className="text-[11px] font-medium text-slate-600 print:text-black">{email}</p>
         {vatRegistered && vatNumber && (
-          <p className="text-[10px] font-bold text-slate-700 print:text-black mt-1">VAT Reg: {vatNumber}</p>
+          <p className="text-[10px] font-bold text-slate-700 print:text-black mt-1">
+            VAT Reg: {vatNumber}
+          </p>
         )}
       </div>
 
@@ -378,7 +775,9 @@ function InvoiceBody({
       {invoice.kind === "repair" && invoice.device && (
         <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] space-y-0.5 print:bg-transparent print:border-black print:rounded-none">
           <div className="font-bold text-slate-900 print:text-black">Device: {invoice.device}</div>
-          {invoice.issue && <div className="text-slate-600 print:text-black">Issue: {invoice.issue}</div>}
+          {invoice.issue && (
+            <div className="text-slate-600 print:text-black">Issue: {invoice.issue}</div>
+          )}
         </div>
       )}
 
@@ -474,18 +873,15 @@ function InvoiceBody({
 
       {/* Footer Branding & Disclaimer */}
       <div className="pt-3 border-t border-dashed border-slate-300 print:border-black text-center space-y-1">
-        <p className="font-bold text-slate-800 print:text-black text-[11px]">
-          {footer}
-        </p>
+        <p className="font-bold text-slate-800 print:text-black text-[11px]">{footer}</p>
         <p className="text-[10px] text-slate-500 print:text-black font-semibold">
           Mobile • Laptop • Tablet • Gaming
         </p>
-        <p className="text-[10px] text-slate-500 print:text-black">Repairs & Accessories</p>
+        <p className="text-[10px] text-slate-500 print:text-black">Repairs &amp; Accessories</p>
         <p className="text-[9px] text-slate-400 print:text-black italic pt-1">
           Keep this receipt as proof of purchase.
         </p>
       </div>
-
     </div>
   );
 }

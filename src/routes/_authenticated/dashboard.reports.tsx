@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getReports } from "@/lib/reports.functions";
 import { formatGBP } from "@/lib/utils";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { CardSkeleton } from "@/components/dashboard/TableSkeleton";
 import {
-  Loader2,
   AlertCircle,
   Calendar,
   BarChart3,
@@ -23,24 +24,41 @@ function ReportsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["reports", dateRange],
     queryFn: () => getReportsFn({ data: dateRange }),
+    staleTime: 1000 * 60 * 2, // 2 mins cache
   });
 
   if (isLoading || !data) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-7 h-7 animate-spin text-brand" />
+      <div className="db-page space-y-6">
+        <div className="db-page-header">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-brand" />
+            <h1 className="db-page-title">Business Operations Report</h1>
+          </div>
+        </div>
+        <CardSkeleton count={4} />
       </div>
     );
   }
 
   return (
-    <div className="db-page">
+    <div className="db-page space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="db-page-header">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-brand" />
             <h1 className="db-page-title">Business Operations Report</h1>
+            <PageHelpButton
+              pageTitle="Reports"
+              pageKey="reports"
+              steps={[
+                "Use reports to review sales, repairs, expenses and profit.",
+                "Choose the required date range before reviewing totals.",
+                "Review payment breakdown and supplier balances.",
+              ]}
+              firstTimeTip="Tip: Select a date range to filter operational P&L totals."
+            />
           </div>
           <p className="db-page-subtitle">
             Operational P&L summary, COGS analysis, supplier balances, and stock valuation (
@@ -49,26 +67,26 @@ function ReportsPage() {
         </div>
 
         {/* Date Filter */}
-        <div className="flex items-center gap-2 db-card !py-2 !px-3 !rounded-lg">
+        <div className="flex flex-wrap items-center gap-2 db-card !py-2 !px-3 !rounded-lg w-full sm:w-auto">
           <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             type="date"
             value={dateRange.from || ""}
             onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand"
+            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand min-h-[36px]"
           />
           <span className="text-muted-foreground text-xs">to</span>
           <input
             type="date"
             value={dateRange.to || ""}
             onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand"
+            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand min-h-[36px]"
           />
           {(dateRange.from || dateRange.to) && (
             <button
               type="button"
               onClick={() => setDateRange({})}
-              className="text-brand font-bold text-xs hover:underline ml-1"
+              className="text-brand font-bold text-xs hover:underline ml-1 cursor-pointer"
             >
               Reset
             </button>
@@ -87,7 +105,7 @@ function ReportsPage() {
       </div>
 
       {/* P&L Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             label: "Gross Sales",
@@ -114,18 +132,18 @@ function ReportsPage() {
             color: data.netProfitPence >= 0 ? "text-emerald-700" : "text-destructive",
           },
         ].map((card) => (
-          <div key={card.label} className="db-card border-l-4 border-l-brand">
+          <div key={card.label} className="db-card border-l-4 border-l-brand flex flex-col justify-between">
             <div className="db-section-label">{card.label}</div>
-            <div className={`text-xl font-extrabold mt-2 ${card.color} tabular-nums`}>
+            <div className={`text-xl font-extrabold mt-2 ${card.color} tabular-nums tracking-tight truncate`}>
               {card.value}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">{card.sub}</div>
+            <div className="text-[10px] text-muted-foreground mt-1 truncate">{card.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Payment + Inventory */}
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Payment Breakdown */}
         <div className="db-card space-y-1">
           <h2 className="db-card-title">Payment Method Collection Breakdown</h2>

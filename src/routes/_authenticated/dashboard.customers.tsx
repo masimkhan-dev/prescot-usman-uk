@@ -3,8 +3,12 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listCustomers, saveCustomer, deactivateCustomer } from "@/lib/customers.functions";
+import { useDebounce } from "@/hooks/use-debounce";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Loader2, Plus, Trash2, Edit2, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard/customers")({
   component: CustomersPage,
@@ -19,14 +23,16 @@ function CustomersPage() {
   const deactivateFn = useServerFn(deactivateCustomer);
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ ...emptyCustomer });
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customers", search, page],
-    queryFn: () => listFn({ data: { search, page, limit: 25 } }),
+    queryKey: ["customers", debouncedSearch, page],
+    queryFn: () => listFn({ data: { search: debouncedSearch, page, limit: 25 } }),
+    staleTime: 1000 * 60 * 5, // 5 min caching
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -43,12 +49,12 @@ function CustomersPage() {
           notes: form.notes || null,
         },
       });
-      toast.success(editing ? "Customer updated" : "Customer added");
+      toastSuccess(editing ? "Customer updated" : "Customer added");
       setForm({ ...emptyCustomer });
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save customer");
+      toastError(err, "Failed to save customer");
     } finally {
       setSubmitting(false);
     }
@@ -58,20 +64,31 @@ function CustomersPage() {
     if (!confirm("Remove customer from active directory?")) return;
     try {
       await deactivateFn({ data: { id } });
-      toast.success("Customer deactivated");
+      toastSuccess("Customer deactivated");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to deactivate customer");
+      toastError(err, "Failed to deactivate customer");
     }
   }
 
   return (
-    <div className="db-page">
+    <div className="db-page space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="db-page-header">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-brand" />
             <h1 className="db-page-title">Customer Directory</h1>
+            <PageHelpButton
+              pageTitle="Customers"
+              pageKey="customers"
+              steps={[
+                "Search existing customer first before adding a new record.",
+                "Add a new customer if not found in system.",
+                "Repair and sales history is saved automatically.",
+                "Marketing consent choices must be selected by the customer.",
+              ]}
+              firstTimeTip="Tip: Search customer directory before adding a new record to avoid duplicates."
+            />
           </div>
           <p className="db-page-subtitle">Manage customer records and contact history.</p>
         </div>
@@ -82,7 +99,10 @@ function CustomersPage() {
             type="text"
             placeholder="Search name, phone, email…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
             className="db-input !pl-9"
           />
         </div>
@@ -93,45 +113,86 @@ function CustomersPage() {
         <div className="db-section-label mb-2">
           {editing ? "Edit Customer Record" : "Add New Customer"}
         </div>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <input
             type="text"
             placeholder="Full Name *"
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="db-input"
+            className="db-input min-h-[40px]"
           />
           <input
             type="text"
             placeholder="Phone Number"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="db-input"
+            className="db-input min-h-[40px]"
           />
           <input
             type="email"
             placeholder="Email Address"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="db-input"
+            className="db-input min-h-[40px]"
           />
           <input
             type="text"
-            placeholder="Full Postal Address"
+            placeholder="Postal Address"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
-            className="db-input sm:col-span-2"
+            className="db-input sm:col-span-2 min-h-[40px]"
           />
           <input
             type="text"
-            placeholder="Notes"
+            placeholder="Postcode (e.g. L34 5QH)"
+            value={(form as any).postcode || ""}
+            onChange={(e) => setForm({ ...form, postcode: e.target.value } as any)}
+            className="db-input min-h-[40px]"
+          />
+          <input
+            type="text"
+            placeholder="Notes (e.g. Preferred contact)"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="db-input"
+            className="db-input sm:col-span-2 min-h-[40px]"
           />
         </div>
-        <div className="flex gap-2 justify-end pt-1">
+
+        {/* Marketing Consent */}
+        <div className="p-3 bg-muted/30 border border-border rounded-xl space-y-1 text-xs">
+          <span className="font-bold text-foreground block text-[11px]">Marketing & Contact Consent</span>
+          <div className="flex items-center gap-4 text-muted-foreground font-semibold">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(form as any).marketing_consent_whatsapp}
+                onChange={(e) => setForm({ ...form, marketing_consent_whatsapp: e.target.checked } as any)}
+                className="rounded border-border text-brand focus:ring-brand"
+              />
+              WhatsApp
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(form as any).marketing_consent_sms}
+                onChange={(e) => setForm({ ...form, marketing_consent_sms: e.target.checked } as any)}
+                className="rounded border-border text-brand focus:ring-brand"
+              />
+              SMS
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(form as any).marketing_consent_email}
+                onChange={(e) => setForm({ ...form, marketing_consent_email: e.target.checked } as any)}
+                className="rounded border-border text-brand focus:ring-brand"
+              />
+              Email
+            </label>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
           {editing && (
             <button
               type="button"
@@ -139,80 +200,90 @@ function CustomersPage() {
                 setForm({ ...emptyCustomer });
                 setEditing(false);
               }}
-              className="btn-outline !py-2 !px-4 !text-xs"
+              className="btn-outline !py-2 !px-4 !text-xs min-h-[40px] cursor-pointer"
             >
               Cancel
             </button>
           )}
-          <button type="submit" disabled={submitting} className="btn-primary !py-2 !px-4 !text-xs flex items-center gap-1.5 disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5 min-h-[40px] cursor-pointer"
+          >
             {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            {editing ? "Update Record" : "Add Customer"}
+            {editing ? "Update Customer" : "Save Customer"}
           </button>
         </div>
       </form>
 
-      {isLoading && (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-brand" />
+      {/* Customer List */}
+      {isLoading ? (
+        <div className="db-card p-4">
+          <TableSkeleton rows={5} cols={5} />
         </div>
-      )}
-
-      {!isLoading && data && (
+      ) : data ? (
         <div className="db-card !p-0 overflow-hidden">
-          <table className="db-table">
-            <thead>
-              <tr>
-                <th className="db-th">Name</th>
-                <th className="db-th">Phone</th>
-                <th className="db-th">Email</th>
-                <th className="db-th">Address</th>
-                <th className="db-th text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((c) => (
-                <tr key={c.id} className="db-tr-hover">
-                  <td className="db-td font-bold text-ink">{c.name}</td>
-                  <td className="db-td font-mono text-muted-foreground">{c.phone || "—"}</td>
-                  <td className="db-td text-muted-foreground">{c.email || "—"}</td>
-                  <td className="db-td text-muted-foreground max-w-xs truncate">{c.address || "—"}</td>
-                  <td className="db-td text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForm({
-                          id: c.id,
-                          name: c.name,
-                          phone: c.phone || "",
-                          email: c.email || "",
-                          address: c.address || "",
-                          notes: c.notes || "",
-                        });
-                        setEditing(true);
-                      }}
-                      className="p-1.5 text-muted-foreground hover:text-ink mr-1 rounded hover:bg-muted transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeactivate(c.id)}
-                      className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/8 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {data.rows.length === 0 && (
+          <div className="overflow-x-auto">
+            <table className="db-table min-w-[650px]">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-muted-foreground text-xs font-medium">
-                    No active customers found.
-                  </td>
+                  <th className="db-th">Name</th>
+                  <th className="db-th">Phone</th>
+                  <th className="db-th">Email</th>
+                  <th className="db-th">Address</th>
+                  <th className="db-th text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.rows.map((c) => (
+                  <tr key={c.id} className="db-tr-hover">
+                    <td className="db-td font-bold text-ink">{c.name}</td>
+                    <td className="db-td font-mono text-muted-foreground">{c.phone || "—"}</td>
+                    <td className="db-td text-muted-foreground">{c.email || "—"}</td>
+                    <td className="db-td text-muted-foreground max-w-xs truncate">{c.address || "—"}</td>
+                    <td className="db-td text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm({
+                            id: c.id,
+                            name: c.name,
+                            phone: c.phone || "",
+                            email: c.email || "",
+                            address: c.address || "",
+                            notes: c.notes || "",
+                          });
+                          setEditing(true);
+                        }}
+                        className="p-1.5 text-muted-foreground hover:text-ink mr-1 rounded hover:bg-muted transition-colors min-h-[36px] min-w-[36px] cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeactivate(c.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/8 transition-colors min-h-[36px] min-w-[36px] cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {data.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>
+                      <EmptyState
+                        title="No active customers found"
+                        description="Try clearing your search query or add a new customer."
+                        actionLabel="Clear Search"
+                        onAction={() => setSearch("")}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
           {data.total > 25 && (
@@ -227,7 +298,7 @@ function CustomersPage() {
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
                   aria-label="Previous page"
-                  className="p-1.5 rounded-lg hover:bg-border disabled:opacity-40 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-border disabled:opacity-40 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -237,7 +308,7 @@ function CustomersPage() {
                   onClick={() => setPage((p) => p + 1)}
                   disabled={(page + 1) * 25 >= data.total}
                   aria-label="Next page"
-                  className="p-1.5 rounded-lg hover:bg-border disabled:opacity-40 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-border disabled:opacity-40 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -245,7 +316,7 @@ function CustomersPage() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

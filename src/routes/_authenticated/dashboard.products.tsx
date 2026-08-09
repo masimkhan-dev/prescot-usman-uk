@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -10,6 +10,11 @@ import {
   listStockMovements,
 } from "@/lib/products.functions";
 import { formatGBP } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { PageHelpButton, ContextTip } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import {
   Loader2,
   Plus,
@@ -20,8 +25,26 @@ import {
   X,
   Search,
   AlertTriangle,
+  FileSpreadsheet,
+  Tag,
 } from "lucide-react";
-import { toast } from "sonner";
+
+// Lazy load heavy components
+const OpeningStockSummary = lazy(() =>
+  import("@/components/dashboard/OpeningStockSummary").then((m) => ({
+    default: m.OpeningStockSummary,
+  }))
+);
+const CSVImportModal = lazy(() =>
+  import("@/components/dashboard/CSVImportModal").then((m) => ({
+    default: m.CSVImportModal,
+  }))
+);
+const ProductLabelModal = lazy(() =>
+  import("@/components/dashboard/ProductLabelModal").then((m) => ({
+    default: m.ProductLabelModal,
+  }))
+);
 
 export const Route = createFileRoute("/_authenticated/dashboard/products")({
   component: ProductsPage,
@@ -51,6 +74,7 @@ function ProductsPage() {
   const listMovementsFn = useServerFn(listStockMovements);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ ...emptyProduct });
   const [editing, setEditing] = useState(false);
@@ -62,40 +86,63 @@ function ProductsPage() {
   const [adjNote, setAdjNote] = useState("");
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [adjusting, setAdjusting] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [labelProduct, setLabelProduct] = useState<{
+    id: string;
+    name: string;
+    category: string;
+    sku: string | null;
+    sale_price_pence: number;
+    barcode?: string | null;
+  } | null>(null);
 
   const { data, isLoading, error: queryError } = useQuery({
-    queryKey: ["products", searchQuery, page],
+    queryKey: ["products", debouncedSearch, page],
     queryFn: async () => {
       try {
-        const res = await listFn({ data: { search: searchQuery, page, limit: 50 } });
+        const res = await listFn({ data: { search: debouncedSearch, page, limit: 50 } });
         return res;
       } catch (err) {
         console.error("Failed to fetch products:", err);
         throw err;
       }
     },
+    staleTime: 1000 * 30, // 30s caching
   });
 
   const { data: movementsData } = useQuery({
     queryKey: ["stock-movements", historyFor?.id],
     queryFn: () => (historyFor ? listMovementsFn({ data: { product_id: historyFor.id } }) : null),
     enabled: !!historyFor,
+    staleTime: 1000 * 30,
   });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) {
-      toast.error("Item Name is required");
+      toastError("Item Name is required");
       return;
     }
     if (!form.category.trim()) {
-      toast.error("Category is required");
+      toastError("Category is required");
       return;
     }
-    
+
+    const costVal = parseFloat(form.cost_price_pounds);
+    const saleVal = parseFloat(form.sale_price_pounds);
+
+    if (isNaN(costVal) || costVal < 0) {
+      toastError("Cost Price must be a valid non-negative number (£)");
+      return;
+    }
+    if (isNaN(saleVal) || saleVal < 0) {
+      toastError("Retail Sale Price must be a valid non-negative number (£)");
+      return;
+    }
+
     setSubmitting(true);
-    const costPence = Math.round((parseFloat(form.cost_price_pounds) || 0) * 100);
-    const salePence = Math.round((parseFloat(form.sale_price_pounds) || 0) * 100);
+    const costPence = Math.round(costVal * 100);
+    const salePence = Math.round(saleVal * 100);
 
     const payload = {
       id: form.id ? form.id : undefined,
@@ -114,14 +161,15 @@ function ProductsPage() {
 
     try {
       await saveFn({ data: payload });
-      toast.success(editing ? "Product updated successfully!" : "Product saved successfully!");
+      toastSuccess(editing ? "Product updated successfully!" : "Product saved successfully!");
       setForm({ ...emptyProduct });
       setEditing(false);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      await queryClient.refetchQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["opening-stock-summary"] });
     } catch (err: unknown) {
       console.error("Save product error:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to save product");
+      toastError(err, "Failed to save product");
     } finally {
       setSubmitting(false);
     }
@@ -132,10 +180,10 @@ function ProductsPage() {
       return;
     try {
       await deactivateFn({ data: { id } });
-      toast.success("Product deactivated");
+      toastSuccess("Product deactivated");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to deactivate product");
+      toastError(err, "Failed to deactivate product");
     }
   }
 
@@ -152,15 +200,18 @@ function ProductsPage() {
           note: adjNote || null,
         },
       });
-      toast.success(
-        `Stock adjusted! Ref #${res.adj_number} (${res.qty_before} → ${res.qty_after})`,
+      toastSuccess(
+        `Stock adjusted! Ref #${res.adj_number} (${res.qty_before} → ${res.qty_after})`
       );
       setAdjustFor(null);
       setAdjDelta(0);
       setAdjNote("");
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["opening-stock-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Adjustment failed");
+      toastError(err, "Stock adjustment failed");
     } finally {
       setAdjusting(false);
     }
@@ -177,13 +228,38 @@ function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0F172A]">Products & Parts Inventory</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-extrabold text-[#0F172A]">Products & Parts Inventory</h1>
+            <PageHelpButton
+              pageTitle="Inventory"
+              pageKey="inventory"
+              steps={[
+                "Add products or repair parts using the form below.",
+                "Use Opening Stock for stock already in the shop.",
+                "New stock should normally come through purchases/receiving.",
+                "Use Stock Adjustment only for manual corrections.",
+              ]}
+              firstTimeTip="Tip: Add existing stock using Opening Stock, or receive new stock via Purchase Orders."
+            />
+          </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage store products, repair replacement parts, barcodes, stock levels & warranty
-            terms.
+            Manage store products, repair replacement parts, barcodes, stock levels & warranty terms.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setImportModalOpen(true)}
+          className="btn-primary !py-2.5 !px-4 !text-xs inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+        >
+          <FileSpreadsheet className="w-4 h-4" /> Import Opening Stock
+        </button>
       </div>
+
+      {/* Opening Stock Audit Summary Widget */}
+      <Suspense fallback={<TableSkeleton rows={2} cols={4} />}>
+        <OpeningStockSummary />
+      </Suspense>
 
       {/* Add / Edit Product Form */}
       <form
@@ -238,25 +314,35 @@ function ProductsPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">SKU Code</label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Internal SKU Code
+            </label>
             <input
               type="text"
-              placeholder="SKU-12345"
+              placeholder={editing ? "e.g. ACC-000001" : "[ Auto-generated when saved ]"}
               value={form.sku}
               onChange={(e) => setForm({ ...form, sku: e.target.value })}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
             />
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
+              {editing ? "Unique internal product SKU." : "Leave blank to auto-generate SKU."}
+            </span>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">Barcode / EAN</label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Manufacturer Barcode (Optional)
+            </label>
             <input
               type="text"
-              placeholder="7388494995"
+              placeholder="e.g. 5012345678901"
               value={form.barcode}
               onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
             />
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
+              Scan or enter barcode printed on product. Leave blank if no barcode.
+            </span>
           </div>
 
           <div>
@@ -289,7 +375,9 @@ function ProductsPage() {
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Current Stock Qty <span className="text-red-500">*</span>
+              {editing ? "Current Stock Qty" : "Opening Stock Quantity"}{" "}
+              <ContextTip text="Stock already present inside shop before using system." />
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
@@ -301,7 +389,9 @@ function ProductsPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">Low Stock Warning Limit</label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Low Stock Warning Limit
+            </label>
             <input
               type="number"
               placeholder="5"
@@ -312,7 +402,10 @@ function ProductsPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">Warranty (Days)</label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Warranty (Days)
+              <ContextTip text="Enter warranty offered for this specific item. Leave 0 if no warranty." />
+            </label>
             <input
               type="number"
               placeholder="0"
@@ -331,7 +424,7 @@ function ProductsPage() {
                 setForm({ ...emptyProduct });
                 setEditing(false);
               }}
-              className="btn-outline !py-2 !px-4 !text-xs"
+              className="btn-outline !py-2 !px-4 !text-xs cursor-pointer"
             >
               Cancel Edit
             </button>
@@ -339,7 +432,7 @@ function ProductsPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5"
+            className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
           >
             {submitting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -352,274 +445,368 @@ function ProductsPage() {
       </form>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
+            placeholder="Search products by name, category, SKU, or barcode..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by name, SKU or barcode…"
-            className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(0);
+            }}
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E11D48]/30 focus:border-[#E11D48]"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          {(["all", "product", "part"] as const).map((t) => (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {[
+            { id: "all", label: "All Items" },
+            { id: "product", label: "Retail Products" },
+            { id: "part", label: "Repair Parts" },
+          ].map((t) => (
             <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
-                typeFilter === t
-                  ? "bg-[#0F172A] text-white border-[#0F172A]"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
+              key={t.id}
+              onClick={() => setTypeFilter(t.id as any)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                typeFilter === t.id
+                  ? "bg-[#E11D48] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {t === "all" ? "All Items" : t === "product" ? "Products Only" : "Repair Parts Only"}
+              {t.label}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Table */}
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-[#E11D48]" />
+        <div className="bg-white border border-slate-200 rounded-2xl p-4">
+          <TableSkeleton rows={6} cols={8} />
+        </div>
+      ) : queryError ? (
+        <div className="p-4 text-red-600 bg-red-50 rounded-xl text-xs font-bold border border-red-200">
+          Failed to load inventory products.
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-b border-slate-200 text-[10px]">
-                <tr>
-                  <th className="px-4 py-3">Item Name & SKU</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Barcode</th>
-                  <th className="px-4 py-3">Cost / Retail</th>
-                  <th className="px-4 py-3">Stock Level</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3 px-4">Item Details</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">SKU / Barcode</th>
+                  <th className="py-3 px-4 text-right">Cost</th>
+                  <th className="py-3 px-4 text-right">Retail</th>
+                  <th className="py-3 px-4 text-center">Stock</th>
+                  <th className="py-3 px-4 text-center">Warranty</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((p) => {
-                  const isLow = p.stock_quantity <= p.low_stock_threshold;
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3 font-bold text-[#0F172A]">
-                        <div>{p.name}</div>
-                        {p.sku && (
-                          <div className="text-[10px] text-slate-400 font-mono font-normal">
-                            SKU: {p.sku}
+              <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <EmptyState
+                        title="No products found"
+                        description="Try adjusting your search query or inventory type filter."
+                        actionLabel="Clear Search"
+                        onAction={() => setSearchQuery("")}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((p) => {
+                    const isLow = p.stock_quantity <= (p.low_stock_threshold ?? 5);
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">{p.name}</div>
+                          <div className="text-[10px] text-slate-400 capitalize">{p.type}</div>
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-slate-600">{p.category}</td>
+                        <td className="py-3 px-4 font-mono text-[11px]">
+                          <span className="text-slate-900 font-bold">{p.sku || "—"}</span>
+                          {p.barcode && (
+                            <span className="text-slate-400 block text-[10px]">{p.barcode}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-semibold text-slate-500">
+                          {formatGBP(p.cost_price_pence / 100)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                          {formatGBP(p.sale_price_pence / 100)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
+                              isLow
+                                ? "bg-red-50 text-red-700 border border-red-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
+                          >
+                            {p.stock_quantity}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center text-slate-500 font-semibold">
+                          {p.warranty_days ? `${p.warranty_days}d` : "None"}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setLabelProduct(p)}
+                              title="Print Barcode / Price Label"
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                            >
+                              <Tag className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAdjustFor({ id: p.id, name: p.name })}
+                              title="Adjust Stock Quantity"
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                            >
+                              <PackagePlus className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryFor({ id: p.id, name: p.name })}
+                              title="View Stock Movement Audit History"
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                            >
+                              <History className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditing(true);
+                                setForm({
+                                  id: p.id,
+                                  name: p.name,
+                                  category: p.category,
+                                  sku: p.sku || "",
+                                  barcode: p.barcode || "",
+                                  type: p.type as any,
+                                  cost_price_pounds: (p.cost_price_pence / 100).toString(),
+                                  sale_price_pounds: (p.sale_price_pence / 100).toString(),
+                                  stock_quantity: p.stock_quantity,
+                                  low_stock_threshold: p.low_stock_threshold || 5,
+                                  warranty_days: p.warranty_days || 0,
+                                  status: p.status as any,
+                                });
+                              }}
+                              title="Edit Item"
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeactivate(p.id)}
+                              title="Deactivate Product"
+                              className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            p.type === "part"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {p.type === "part" ? "Part" : "Product"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-slate-600">{p.barcode || "—"}</td>
-                      <td className="px-4 py-3 font-mono">
-                        <div className="text-slate-500 text-[10px]">
-                          Cost: {formatGBP(p.cost_price_pence / 100)}
-                        </div>
-                        <div className="font-extrabold text-slate-900">
-                          Sale: {formatGBP(p.sale_price_pence / 100)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded-lg font-bold text-xs inline-flex items-center gap-1 ${
-                            isLow ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"
-                          }`}
-                        >
-                          {isLow && <AlertTriangle className="w-3 h-3" />}
-                          {p.stock_quantity} units
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right space-x-1">
-                        <button
-                          type="button"
-                          onClick={() => setAdjustFor({ id: p.id, name: p.name })}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700 inline-flex items-center gap-1"
-                        >
-                          <PackagePlus className="w-3 h-3" /> Adjust
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setHistoryFor({ id: p.id, name: p.name })}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700 inline-flex items-center gap-1"
-                        >
-                          <History className="w-3 h-3" /> Logs
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForm({
-                              id: p.id,
-                              name: p.name,
-                              category: p.category,
-                              sku: p.sku || "",
-                              barcode: p.barcode || "",
-                              type: p.type as "product" | "part" | "service",
-                              cost_price_pounds: (p.cost_price_pence / 100).toString(),
-                              sale_price_pounds: (p.sale_price_pence / 100).toString(),
-                              stock_quantity: p.stock_quantity,
-                              low_stock_threshold: p.low_stock_threshold,
-                              warranty_days: p.warranty_days,
-                              status: p.status as "active" | "inactive",
-                            });
-                            setEditing(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-slate-900"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeactivate(p.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {data && data.total > 50 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
+              <span>
+                Showing {page * 50 + 1}–{Math.min((page + 1) * 50, data.total)} of {data.total}{" "}
+                items
+              </span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={(page + 1) * 50 >= data.total}
+                  className="px-3 py-1 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Stock Adjustment Modal */}
+      {/* Adjust Stock Modal */}
       {adjustFor && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <form
             onSubmit={handleAdjustSubmit}
-            className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl"
+            className="bg-white border border-slate-200 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
           >
-            <h3 className="font-extrabold text-slate-900 text-sm">
-              Stock Adjustment — {adjustFor.name}
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-sm text-slate-900">
+                Adjust Stock: {adjustFor.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAdjustFor(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Quantity Change (+ or -)
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Quantity Change (+ to Add, - to Deduct)
               </label>
               <input
                 type="number"
-                required
                 value={adjDelta}
                 onChange={(e) => setAdjDelta(Number(e.target.value))}
-                placeholder="e.g. +5 or -2"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#E11D48]"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-extrabold focus:border-[#E11D48] outline-none"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Adjustment Reason
               </label>
               <select
                 value={adjReason}
                 onChange={(e) => setAdjReason(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-[#E11D48] bg-white"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
               >
-                <option value="adjustment">Stock Count Adjustment</option>
-                <option value="damage">Damaged / Broken Stock</option>
-                <option value="opening_count">Opening Inventory Count</option>
+                <option value="adjustment">Manual Correction / Count</option>
+                <option value="damaged">Damaged / Broken Stock</option>
+                <option value="return">Customer Return</option>
+                <option value="purchase">Opening Stock Addition</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Audit Note</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Audit Note (Optional)
+              </label>
               <input
                 type="text"
-                placeholder="Note / reference"
+                placeholder="e.g. Stock audit variance"
                 value={adjNote}
                 onChange={(e) => setAdjNote(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:border-[#E11D48]"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium focus:border-[#E11D48] outline-none"
               />
             </div>
-            <div className="flex gap-2 justify-end">
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setAdjustFor(null)}
-                className="btn-outline !py-1.5 !px-3 !text-xs"
+                className="btn-outline !py-2 !px-4 !text-xs cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={adjusting || adjDelta === 0}
-                className="btn-primary !py-1.5 !px-4 !text-xs disabled:opacity-60 flex items-center gap-1.5"
+                className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
-                {adjusting && <Loader2 className="w-3 h-3 animate-spin" />}
-                Confirm Adjustment
+                {adjusting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                Save Adjustment
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Movement Audit Log Modal */}
+      {/* Audit History Modal */}
       {historyFor && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-5 max-w-lg w-full max-h-[80vh] overflow-auto space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-sm">
-                Stock Audit History — {historyFor.name}
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-sm text-slate-900">
+                Movement Log: {historyFor.name}
               </h3>
               <button
                 type="button"
                 onClick={() => setHistoryFor(null)}
-                className="p-1 hover:bg-slate-100 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] font-extrabold">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Type</th>
-                  <th className="text-right py-2">Change</th>
-                  <th className="text-right py-2">Before → After</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {movementsData?.rows.map((m) => (
-                  <tr key={m.id}>
-                    <td className="py-2 text-slate-500 font-mono">
-                      {new Date(m.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-2 font-bold text-slate-900">{m.movement_type}</td>
-                    <td
-                      className={`py-2 text-right font-extrabold font-mono ${m.qty_change > 0 ? "text-emerald-600" : "text-rose-600"}`}
-                    >
-                      {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
-                    </td>
-                    <td className="py-2 text-right font-mono text-slate-600">
-                      {m.qty_before} → {m.qty_after}
-                    </td>
-                  </tr>
-                ))}
-                {movementsData?.rows.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-slate-400 font-medium">
-                      No stock movements recorded yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <div className="overflow-y-auto flex-1 space-y-2 text-xs">
+              {!movementsData ? (
+                <div className="text-center py-6 text-slate-400">Loading audit history...</div>
+              ) : (movementsData.rows ?? []).length === 0 ? (
+                <div className="text-center py-6 text-slate-400">
+                  No movement records logged for this item yet.
+                </div>
+              ) : (
+                (movementsData.rows ?? []).map((m: any) => (
+                  <div
+                    key={m.id}
+                    className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-extrabold text-slate-900 capitalize">
+                        {m.reason} ({m.quantity_change > 0 ? `+${m.quantity_change}` : m.quantity_change})
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {new Date(m.created_at).toLocaleString()}
+                        {m.reference_number && ` • Ref #${m.reference_number}`}
+                      </div>
+                      {m.notes && (
+                        <div className="text-[11px] text-slate-600 mt-0.5">{m.notes}</div>
+                      )}
+                    </div>
+                    <div className="font-mono font-bold text-slate-700 text-xs">
+                      {m.quantity_before} → {m.quantity_after}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
+
+      {/* LAZY LOADED MODALS */}
+      <Suspense fallback={null}>
+        {importModalOpen && (
+          <CSVImportModal
+            onClose={() => setImportModalOpen(false)}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["products"] });
+              queryClient.invalidateQueries({ queryKey: ["active-products"] });
+              queryClient.invalidateQueries({ queryKey: ["opening-stock-summary"] });
+            }}
+          />
+        )}
+
+        {labelProduct && (
+          <ProductLabelModal
+            onClose={() => setLabelProduct(null)}
+            product={labelProduct}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

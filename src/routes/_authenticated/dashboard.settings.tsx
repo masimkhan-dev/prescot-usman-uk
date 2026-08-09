@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSettings, saveSettings } from "@/lib/settings.functions";
-import { Settings, Save, Store, Receipt, ShieldAlert, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toastSuccess, toastError } from "@/lib/toast";
+import { PageHelpButton, isTrainingModeEnabled, setTrainingModeEnabled } from "@/components/dashboard/PageHelpButton";
+import { Settings, Save, Store, Receipt, ShieldAlert, Shield, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/dashboard/settings")({
@@ -17,9 +18,12 @@ function DashboardSettingsPage() {
   const getSettingsFn = useServerFn(getSettings);
   const saveSettingsFn = useServerFn(saveSettings);
 
+  const [trainingMode, setTrainingMode] = useState<boolean>(isTrainingModeEnabled());
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ["store-settings"],
     queryFn: () => getSettingsFn(),
+    staleTime: 1000 * 60 * 10, // 10 mins cache
   });
 
   const [formData, setFormData] = useState({
@@ -64,10 +68,10 @@ function DashboardSettingsPage() {
     mutationFn: (patch: typeof formData) => saveSettingsFn({ data: patch }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-settings"] });
-      toast.success("Store settings updated successfully.");
+      toastSuccess("Store settings updated successfully.");
     },
     onError: (err: Error) => {
-      toast.error(`Failed to save settings: ${err.message}`);
+      toastError(err, "Failed to save settings");
     },
   });
 
@@ -79,6 +83,13 @@ function DashboardSettingsPage() {
   const handleChange = (key: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
+
+  function handleToggleTrainingMode() {
+    const next = !trainingMode;
+    setTrainingMode(next);
+    setTrainingModeEnabled(next);
+    toastSuccess(`Automatic page training hints turned ${next ? "ON" : "OFF"}.`);
+  }
 
   if (!isAdmin) {
     return (
@@ -100,19 +111,54 @@ function DashboardSettingsPage() {
     );
   }
 
-  const inputCls = "w-full px-3.5 py-2.5 bg-background border border-border rounded-lg text-xs font-semibold text-foreground focus:bg-card focus:ring-2 focus:ring-brand/30 focus:border-brand outline-none transition-all";
+  const inputCls =
+    "w-full px-3.5 py-2.5 bg-background border border-border rounded-lg text-xs font-semibold text-foreground focus:bg-card focus:ring-2 focus:ring-brand/30 focus:border-brand outline-none transition-all";
   const labelCls = "block text-xs font-bold text-foreground mb-1";
 
   return (
-    <div className="db-page max-w-4xl">
+    <div className="db-page max-w-4xl space-y-6">
       <div className="db-page-header">
         <div className="flex items-center gap-2">
           <Settings className="w-4 h-4 text-brand" />
           <h1 className="db-page-title">Retail Store Settings</h1>
+          <PageHelpButton
+            pageTitle="Settings"
+            pageKey="settings"
+            steps={[
+              "Use this page for business-level defaults and configuration.",
+              "Toggle automatic page training tips ON/OFF.",
+              "Changes affect future records; finalized historical records remain intact.",
+            ]}
+            firstTimeTip="Tip: Use Settings to configure store information and training tip preferences."
+          />
         </div>
         <p className="db-page-subtitle">
           Manage store details, tax configuration, receipt preferences, and operational rules.
         </p>
+      </div>
+
+      {/* Training Tips Preferences Card */}
+      <div className="db-card p-4 flex items-center justify-between gap-4 bg-brand/5 border-brand/20">
+        <div className="flex items-center gap-3">
+          <Sparkles className="w-5 h-5 text-brand shrink-0" />
+          <div>
+            <h3 className="font-bold text-xs text-foreground">Interactive Training & Help Hints</h3>
+            <p className="text-[11px] text-muted-foreground">
+              Show one-time introductory hints when visiting major ERP pages.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleToggleTrainingMode}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+            trainingMode
+              ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+              : "bg-muted text-muted-foreground border-border"
+          }`}
+        >
+          {trainingMode ? "Training Mode: ON" : "Training Mode: OFF"}
+        </button>
       </div>
 
       {/* Notice Banner */}
@@ -184,7 +230,7 @@ function DashboardSettingsPage() {
         {/* VAT */}
         <div className="db-card space-y-4">
           <h2 className="db-card-title flex items-center gap-2">
-            <Receipt className="w-3.5 h-3.5 text-brand" /> VAT & Registration (OC-01, OC-09)
+            <Receipt className="w-3.5 h-3.5 text-brand" /> VAT & Registration
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -238,7 +284,7 @@ function DashboardSettingsPage() {
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className={labelCls}>Default Warranty Days (OC-02)</label>
+              <label className={labelCls}>Default Warranty Days</label>
               <input
                 type="number"
                 placeholder="e.g. 90 or 365"
@@ -248,7 +294,7 @@ function DashboardSettingsPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Door-to-Door Charge in Pence (OC-10)</label>
+              <label className={labelCls}>Door-to-Door Charge in Pence</label>
               <input
                 type="number"
                 placeholder="0"
@@ -291,11 +337,43 @@ function DashboardSettingsPage() {
           </div>
         </div>
 
+        {/* Repair & Warranty Templates */}
+        <div className="db-card space-y-4">
+          <h2 className="db-card-title flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-brand" /> Repair Warranty Templates & Defaults
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Centralized warranty templates for screens, batteries, small parts, and liquid damage treatment. Templates supply default days and policy text; individual repair tickets maintain independent snapshots.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { title: "Standard Screen", days: "90 Days", cat: "Display" },
+              { title: "Premium Screen", days: "180 Days", cat: "OLED / High Quality" },
+              { title: "Original / Genuine Screen", days: "365 Days", cat: "Genuine Service Pack" },
+              { title: "Battery Replacement", days: "90 Days", cat: "Capacity & Power" },
+              { title: "Charging Port Repair", days: "90 Days", cat: "Soldering & Flex" },
+              { title: "Camera Replacement", days: "90 Days", cat: "Lens & Sensor" },
+              { title: "Logic Board Repair", days: "30 Days", cat: "Microsoldering" },
+              { title: "Liquid Damage Treatment", days: "0 Days", cat: "Diagnostic Only" },
+              { title: "Customer Supplied Part", days: "90 Days", cat: "Workmanship Only" },
+            ].map((t) => (
+              <div key={t.title} className="p-3 bg-muted/30 border border-border rounded-xl space-y-1 text-xs">
+                <div className="font-bold text-foreground flex items-center justify-between">
+                  <span>{t.title}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-brand/10 text-brand text-[10px]">{t.days}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t.cat}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="btn-primary !py-2.5 !px-6 !text-xs flex items-center gap-2"
+            className="btn-primary !py-2.5 !px-6 !text-xs flex items-center gap-2 cursor-pointer"
           >
             {mutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

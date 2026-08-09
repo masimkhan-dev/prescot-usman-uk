@@ -44,13 +44,24 @@ export const listCustomers = createServerFn({ method: "GET" })
 // Fast customer search for POS typeahead (no pagination, max 20)
 export const searchCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: any) => z.object({ q: z.string().min(1) }).parse(input?.data ?? input))
+  .inputValidator((input: any) =>
+    z
+      .object({
+        q: z.string().optional().nullable(),
+        query: z.string().optional().nullable(),
+        search: z.string().optional().nullable(),
+      })
+      .parse(input?.data ?? input ?? {}),
+  )
   .handler(async ({ data, context }) => {
+    const term = (data.q || data.query || data.search || "").trim();
+    if (!term) return [];
+
     const { data: rows, error } = await context.supabase
       .from("customers")
       .select("id, name, phone, email")
       .eq("is_active", true)
-      .or(`name.ilike.%${data.q}%,phone.ilike.%${data.q}%`)
+      .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
       .order("name")
       .limit(20);
     if (error) throw error;

@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listSales, getSaleDetail } from "@/lib/sales.functions";
 import { formatGBP } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+import { toastError } from "@/lib/toast";
+import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
+import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
+import type { InvoiceData } from "@/components/dashboard/Invoice";
 import { CreditCard, Search, FileText, Loader2 } from "lucide-react";
-import { InvoiceModal, type InvoiceData } from "@/components/dashboard/Invoice";
-import { toast } from "sonner";
+
+import { InvoiceModal } from "@/components/dashboard/Invoice";
 
 export const Route = createFileRoute("/_authenticated/dashboard/sales")({
   component: DashboardSalesPage,
@@ -17,12 +23,14 @@ function DashboardSalesPage() {
   const getSaleDetailFn = useServerFn(getSaleDetail);
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
   const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
 
   const { data: salesData, isLoading } = useQuery({
-    queryKey: ["sales", search],
-    queryFn: () => listSalesFn({ data: { search } }),
+    queryKey: ["sales", debouncedSearch],
+    queryFn: () => listSalesFn({ data: { search: debouncedSearch } }),
+    staleTime: 1000 * 30, // 30s cache
   });
   const sales = salesData?.rows ?? [];
 
@@ -49,19 +57,29 @@ function DashboardSalesPage() {
       };
       setSelectedInvoice(inv);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to load sale receipt");
+      toastError(err, "Failed to load sale receipt");
     } finally {
       setLoadingInvoiceId(null);
     }
   };
 
   return (
-    <div className="db-page">
+    <div className="db-page space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="db-page-header">
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-brand" />
             <h1 className="db-page-title">Sales Transaction History</h1>
+            <PageHelpButton
+              pageTitle="Sales Log"
+              pageKey="sales"
+              steps={[
+                "Use this page to review completed sales, payments and receipts.",
+                "Search by invoice number or customer name.",
+                "Click Receipt on any transaction to view or reprint invoice.",
+              ]}
+              firstTimeTip="Tip: Click Receipt next to any transaction to open and reprint the invoice."
+            />
           </div>
           <p className="db-page-subtitle">
             Complete retail checkout receipts, payment methods, and transaction breakdown.
@@ -81,80 +99,87 @@ function DashboardSalesPage() {
       </div>
 
       <div className="db-card !p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="db-table">
-            <thead>
-              <tr>
-                <th className="db-th">Sale ID</th>
-                <th className="db-th">Date</th>
-                <th className="db-th">Customer</th>
-                <th className="db-th">Payment</th>
-                <th className="db-th text-right">Total (£)</th>
-                <th className="db-th text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        {isLoading ? (
+          <div className="p-4">
+            <TableSkeleton rows={6} cols={6} />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="db-table min-w-[650px]">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">
-                    Loading sales records…
-                  </td>
+                  <th className="db-th">Sale ID</th>
+                  <th className="db-th">Date</th>
+                  <th className="db-th">Customer</th>
+                  <th className="db-th">Payment</th>
+                  <th className="db-th text-right">Total (£)</th>
+                  <th className="db-th text-right">Action</th>
                 </tr>
-              ) : sales.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">
-                    No sales matching criteria.
-                  </td>
-                </tr>
-              ) : (
-                sales.map((sale) => (
-                  <tr key={sale.id} className="db-tr-hover">
-                    <td className="db-td font-mono font-bold text-ink">
-                      {sale.invoice_number ?? `#${sale.id.slice(0, 8)}`}
-                    </td>
-                    <td className="db-td text-muted-foreground">
-                      {new Date(sale.created_at).toLocaleString("en-GB", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </td>
-                    <td className="db-td font-medium text-foreground">
-                      {(sale.customers as { name: string } | null)?.name || "Walk-in Customer"}
-                    </td>
-                    <td className="db-td">
-                      <span className="db-badge bg-muted text-muted-foreground capitalize">
-                        {sale.payment_method?.replace("_", " ") || "Cash"}
-                      </span>
-                    </td>
-                    <td className="db-td text-right font-extrabold text-ink tabular-nums">
-                      {formatGBP(sale.total_pence / 100)}
-                    </td>
-                    <td className="db-td text-right">
-                      <button
-                        onClick={() => handleOpenInvoice(sale.id)}
-                        disabled={loadingInvoiceId === sale.id}
-                        aria-label={`View receipt for sale ${sale.invoice_number}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted hover:bg-border text-foreground font-bold text-[11px] transition-colors disabled:opacity-60"
-                      >
-                        {loadingInvoiceId === sale.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <FileText className="w-3 h-3" />
-                        )}
-                        Receipt
-                      </button>
+              </thead>
+              <tbody>
+                {sales.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        title="No sales matching criteria"
+                        description="Try adjusting your invoice search query."
+                        actionLabel="Clear Search"
+                        onAction={() => setSearch("")}
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  sales.map((sale) => (
+                    <tr key={sale.id} className="db-tr-hover">
+                      <td className="db-td font-mono font-bold text-ink">
+                        {sale.invoice_number ?? `#${sale.id.slice(0, 8)}`}
+                      </td>
+                      <td className="db-td text-muted-foreground">
+                        {new Date(sale.created_at).toLocaleString("en-GB", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </td>
+                      <td className="db-td font-medium text-foreground">
+                        {(sale.customers as { name: string } | null)?.name || "Walk-in Customer"}
+                      </td>
+                      <td className="db-td">
+                        <span className="db-badge bg-muted text-muted-foreground capitalize">
+                          {sale.payment_method?.replace("_", " ") || "Cash"}
+                        </span>
+                      </td>
+                      <td className="db-td text-right font-extrabold text-ink tabular-nums">
+                        {formatGBP(sale.total_pence / 100)}
+                      </td>
+                      <td className="db-td text-right">
+                        <button
+                          onClick={() => handleOpenInvoice(sale.id)}
+                          disabled={loadingInvoiceId === sale.id}
+                          aria-label={`View receipt for sale ${sale.invoice_number}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted hover:bg-border text-foreground font-bold text-[11px] transition-colors disabled:opacity-60 cursor-pointer"
+                        >
+                          {loadingInvoiceId === sale.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <FileText className="w-3 h-3" />
+                          )}
+                          Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {selectedInvoice && (
-        <InvoiceModal data={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
-      )}
+      <Suspense fallback={null}>
+        {selectedInvoice && (
+          <InvoiceModal data={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+        )}
+      </Suspense>
     </div>
   );
 }

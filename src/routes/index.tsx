@@ -155,7 +155,7 @@ const methods = [
 
 import { motion, useReducedMotion } from "framer-motion";
 
-export function HomePage() {
+function HomePage() {
   const scrollToQuote = () =>
     document.getElementById("price-checker")?.scrollIntoView({ behavior: "smooth" });
 

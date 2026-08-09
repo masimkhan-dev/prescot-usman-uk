@@ -94,7 +94,17 @@ export const listAllActiveProducts = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 export const saveProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: any) => productUpsertSchema.parse(input?.data ?? input))
+  .inputValidator((input: any) => {
+    try {
+      return productUpsertSchema.parse(input?.data ?? input);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const issues = err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
+        throw new Error(`Validation error: ${issues}`);
+      }
+      throw err;
+    }
+  })
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
     const payload = {
@@ -105,6 +115,23 @@ export const saveProduct = createServerFn({ method: "POST" })
       avg_cost_pence: rest.cost_price_pence,
     };
 
+    const handleSupabaseError = (error: { code?: string; message?: string; details?: string }) => {
+      if (error.code === "23505" || error.message?.includes("duplicate key") || error.message?.includes("idx_products")) {
+        if (error.message?.includes("barcode") || error.details?.includes("barcode") || error.message?.includes("idx_products_barcode")) {
+          return new Error(`Barcode "${payload.barcode}" is already assigned to another product.`);
+        }
+        if (
+          error.message?.includes("sku") ||
+          error.details?.includes("sku") ||
+          error.message?.includes("idx_products_sku") ||
+          error.message?.includes("idx_products_sku_upper")
+        ) {
+          return new Error(`SKU "${payload.sku}" is already assigned to another product.`);
+        }
+      }
+      return new Error(error.message || "Failed to save product");
+    };
+
     if (id) {
       const { data: updated, error } = await context.supabase
         .from("products")
@@ -112,7 +139,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         .eq("id", id)
         .select()
         .single();
-      if (error) throw new Error(error.message || "Failed to update product");
+      if (error) throw handleSupabaseError(error);
       return updated;
     }
 
@@ -121,7 +148,24 @@ export const saveProduct = createServerFn({ method: "POST" })
       .insert(payload)
       .select()
       .single();
-    if (error) throw new Error(error.message || "Failed to insert product");
+    if (error) throw handleSupabaseError(error);
+
+    // Automatically record opening stock movement if stock_quantity > 0
+    if (inserted.stock_quantity > 0) {
+      await context.supabase.from("stock_movements").insert({
+        product_id: inserted.id,
+        movement_type: "opening_count",
+        qty_change: inserted.stock_quantity,
+        qty_before: 0,
+        qty_after: inserted.stock_quantity,
+        unit_cost_pence: inserted.cost_price_pence,
+        reason: "Initial opening stock setup",
+        note: "Manual Product Setup",
+        ref_id: inserted.id,
+        created_by: context.userId,
+      });
+    }
+
     return inserted;
   });
 
@@ -145,16 +189,16 @@ export const deactivateProduct = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 export const adjustStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .inputValidator((input: any) =>
     z
       .object({
         product_id: z.string().uuid(),
-        qty_change: z.number().int(),
+        qty_change: z.coerce.number().int(),
         reason: z.string().min(1).default("adjustment"),
         note: z.string().optional().nullable(),
         approved_by: z.string().uuid().optional().nullable(),
       })
-      .parse(input),
+      .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("adjust_stock", {
@@ -209,3 +253,69 @@ export const listProductCategories = createServerFn({ method: "GET" })
     if (error) throw error;
     return [...new Set((data ?? []).map((p) => p.category))].sort();
   });
+
+// ---------------------------------------------------------------------------
+// bulkItemSchema & importOpeningStock
+// ---------------------------------------------------------------------------
+const bulkItemSchema = z.object({
+  name: z.string().min(1),
+  category: z.string().min(1),
+  sku: z.string().optional().nullable(),
+  barcode: z.string().optional().nullable(),
+  type: z.enum(["product", "part", "service"]).default("product"),
+  cost_price_pence: z.coerce.number().int().nonnegative(),
+  sale_price_pence: z.coerce.number().int().nonnegative(),
+  stock_quantity: z.coerce.number().int().nonnegative(),
+  low_stock_threshold: z.coerce.number().int().nonnegative().default(5),
+  warranty_days: z.coerce.number().int().nonnegative().default(0),
+});
+
+export const importOpeningStock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: any) => z.array(bulkItemSchema).min(1).parse(input?.data ?? input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("bulk_import_opening_stock", {
+      p_products: data,
+    });
+    if (error) throw new Error(error.message);
+    return result as { imported_count: number };
+  });
+
+// ---------------------------------------------------------------------------
+// getOpeningStockSummary
+// ---------------------------------------------------------------------------
+export const getOpeningStockSummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: movements, error } = await context.supabase
+      .from("stock_movements")
+      .select("product_id, qty_change, unit_cost_pence, products(id, name, sale_price_pence)")
+      .eq("movement_type", "opening_count");
+    if (error) throw error;
+
+    let totalUnits = 0;
+    let openingCostValuePence = 0;
+    let openingRetailValuePence = 0;
+    const prodSet = new Set<string>();
+
+    for (const m of movements ?? []) {
+      if (m.product_id) prodSet.add(m.product_id);
+      const qty = m.qty_change ?? 0;
+      const costPence = m.unit_cost_pence ?? 0;
+      const prod = m.products as { sale_price_pence?: number } | null;
+      const salePence = prod?.sale_price_pence ?? 0;
+
+      totalUnits += qty;
+      openingCostValuePence += qty * costPence;
+      openingRetailValuePence += qty * salePence;
+    }
+
+    return {
+      totalProducts: prodSet.size,
+      totalUnits,
+      openingCostValuePence,
+      openingRetailValuePence,
+      potentialProfitPence: openingRetailValuePence - openingCostValuePence,
+    };
+  });
+

@@ -5,13 +5,20 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type AppRole = "admin" | "staff" | "technician";
-export type PaymentMethod = "cash" | "card" | "bank_transfer" | "credit_note";
+export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cheque" | "credit_note";
 export type DocumentType = "INV" | "CRN" | "REP" | "PO" | "GRN" | "ADJ";
 export type RepairStatus =
   "pending" | "assessed" | "in_progress" | "quality_check" | "ready" | "completed" | "cancelled";
 export type PurchaseOrderStatus = "draft" | "ordered" | "partial" | "received" | "cancelled";
 export type MovementType =
-  "sale" | "return" | "purchase" | "repair_use" | "repair_return" | "adjustment" | "opening";
+  | "sale"
+  | "return"
+  | "purchase"
+  | "repair_use"
+  | "repair_return"
+  | "adjustment"
+  | "opening"
+  | "opening_count";
 export type StockTrackType = "quantity" | "serial";
 
 type Relationship = {
@@ -909,6 +916,48 @@ export type Database = {
         Args: { p_repair_id: string; p_new_status: RepairStatus; p_note?: string | null };
         Returns: Json;
       };
+      save_repair_ticket_v2: {
+        Args: {
+          p_ticket_id?: string | null;
+          p_customer_id: string;
+          p_device: string;
+          p_brand?: string | null;
+          p_model?: string | null;
+          p_color?: string | null;
+          p_imei?: string | null;
+          p_serial_number?: string | null;
+          p_device_condition?: Json;
+          p_accessories_received?: string[];
+          p_issue: string;
+          p_method?: string;
+          p_technician_id?: string | null;
+          p_estimated_completion_at?: string | null;
+          p_deposit_pence?: number;
+          p_initial_quote_pence?: number;
+          p_labour_price_pence?: number;
+          p_warranty_days?: number;
+          p_warranty_policy_text?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: Json;
+      };
+      approve_repair_quote: {
+        Args: {
+          p_repair_id: string;
+          p_approved_via: string;
+          p_total_pence: number;
+          p_notes?: string | null;
+        };
+        Returns: Json;
+      };
+      finalize_repair_ticket: {
+        Args: { p_repair_id: string };
+        Returns: Json;
+      };
+      bulk_import_opening_stock: {
+        Args: { p_products: Json };
+        Returns: Json;
+      };
       bootstrap_admin: { Args: { p_user_id: string }; Returns: string };
     };
     Enums: {
@@ -982,6 +1031,7 @@ export const Constants = {
         "repair_return",
         "adjustment",
         "opening",
+        "opening_count",
       ],
       stock_track_type: ["quantity", "serial"],
     },
