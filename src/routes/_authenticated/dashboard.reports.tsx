@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getReports } from "@/lib/reports.functions";
@@ -10,16 +10,61 @@ import {
   AlertCircle,
   Calendar,
   BarChart3,
+  RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/reports")({
   component: ReportsPage,
 });
 
+function formatDateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function ReportsPage() {
   const getReportsFn = useServerFn(getReports);
 
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+
+  const datePresets = useMemo(() => {
+    const now = new Date();
+    const todayStr = formatDateString(now);
+
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    const yesterdayStr = formatDateString(yest);
+
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    const thisWeekStartStr = formatDateString(monday);
+
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthStartStr = formatDateString(firstOfMonth);
+
+    const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthStartStr = formatDateString(firstOfLastMonth);
+    const lastMonthEndStr = formatDateString(lastOfLastMonth);
+
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = formatDateString(thirtyDaysAgo);
+
+    return [
+      { label: "Today", from: todayStr, to: todayStr },
+      { label: "Yesterday", from: yesterdayStr, to: yesterdayStr },
+      { label: "This Week", from: thisWeekStartStr, to: todayStr },
+      { label: "This Month", from: thisMonthStartStr, to: todayStr },
+      { label: "Last Month", from: lastMonthStartStr, to: lastMonthEndStr },
+      { label: "Last 30 Days", from: thirtyDaysAgoStr, to: todayStr },
+      { label: "All Time", from: undefined, to: undefined },
+    ];
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["reports", dateRange],
@@ -44,7 +89,7 @@ function ReportsPage() {
   return (
     <div className="db-page space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         <div className="db-page-header">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-brand" />
@@ -66,31 +111,74 @@ function ReportsPage() {
           </p>
         </div>
 
-        {/* Date Filter */}
-        <div className="flex flex-wrap items-center gap-2 db-card !py-2 !px-3 !rounded-lg w-full sm:w-auto">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <input
-            type="date"
-            value={dateRange.from || ""}
-            onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand min-h-[36px]"
-          />
-          <span className="text-muted-foreground text-xs">to</span>
-          <input
-            type="date"
-            value={dateRange.to || ""}
-            onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-            className="border border-border rounded-md px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand min-h-[36px]"
-          />
-          {(dateRange.from || dateRange.to) && (
-            <button
-              type="button"
-              onClick={() => setDateRange({})}
-              className="text-brand font-bold text-xs hover:underline ml-1 cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
+        {/* Enhanced Date Range Filter Panel */}
+        <div className="db-card p-3 sm:p-4 rounded-xl border border-border/80 shadow-xs space-y-3 shrink-0">
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              <Calendar className="w-4 h-4 text-brand" />
+              <span>Date Filter</span>
+            </div>
+            <div className="text-[10px] font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
+              {dateRange.from || dateRange.to ? (
+                <span>
+                  {dateRange.from || "Start"} ➔ {dateRange.to || "Today"}
+                </span>
+              ) : (
+                <span>All Time</span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {datePresets.map((p) => {
+              const isActive =
+                (p.from === dateRange.from || (!p.from && !dateRange.from)) &&
+                (p.to === dateRange.to || (!p.to && !dateRange.to));
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setDateRange({ from: p.from, to: p.to })}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-brand text-white border-brand shadow-xs"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom Date Input Controls */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
+            <span className="text-[11px] font-bold text-muted-foreground">Custom:</span>
+            <input
+              type="date"
+              value={dateRange.from || ""}
+              onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
+              className="border border-border rounded-lg px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand focus:ring-1 focus:ring-brand min-h-[32px]"
+            />
+            <span className="text-muted-foreground text-xs font-medium">to</span>
+            <input
+              type="date"
+              value={dateRange.to || ""}
+              onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
+              className="border border-border rounded-lg px-2 py-1 text-xs outline-none font-medium bg-background text-foreground focus:border-brand focus:ring-1 focus:ring-brand min-h-[32px]"
+            />
+            {(dateRange.from || dateRange.to) && (
+              <button
+                type="button"
+                onClick={() => setDateRange({})}
+                className="text-brand font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer ml-auto"
+                title="Reset date filter"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
