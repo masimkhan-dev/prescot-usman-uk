@@ -60,6 +60,7 @@ interface CartItem {
   product_name: string;
   quantity: number;
   unit_price_pence: number;
+  original_price_pence: number;
   discount_pence: number;
   line_total_pence: number;
   stock: number;
@@ -202,6 +203,7 @@ function POSPage() {
           product_name: product.name,
           quantity: 1,
           unit_price_pence: product.sale_price_pence,
+          original_price_pence: product.sale_price_pence,
           discount_pence: 0,
           line_total_pence: product.sale_price_pence,
           stock: product.stock_quantity,
@@ -233,6 +235,36 @@ function POSPage() {
         const validQty = Math.min(Math.max(targetQty, 0), c.stock);
         const lineTotal = validQty * c.unit_price_pence - c.discount_pence;
         return { ...c, quantity: validQty, line_total_pence: Math.max(lineTotal, 0) };
+      }),
+    );
+  }
+
+  function updateUnitPrice(id: string, newUnitPricePounds: number) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.product_id !== id) return c;
+        const validPounds = Math.max(newUnitPricePounds, 0);
+        const newPence = Math.round(validPounds * 100);
+        const lineTotal = c.quantity * newPence - c.discount_pence;
+        return {
+          ...c,
+          unit_price_pence: newPence,
+          line_total_pence: Math.max(lineTotal, 0),
+        };
+      }),
+    );
+  }
+
+  function resetUnitPrice(id: string) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.product_id !== id) return c;
+        const lineTotal = c.quantity * c.original_price_pence - c.discount_pence;
+        return {
+          ...c,
+          unit_price_pence: c.original_price_pence,
+          line_total_pence: Math.max(lineTotal, 0),
+        };
       }),
     );
   }
@@ -689,8 +721,36 @@ function POSPage() {
                 >
                   <div className="min-w-0 flex-1 pr-2">
                     <div className="font-bold text-slate-900 truncate">{item.product_name}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">
-                      {formatGBP(item.unit_price_pence / 100)} each
+                    <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-500 font-mono">
+                      <span>£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.unit_price_pence === 0 ? "" : (item.unit_price_pence / 100).toString()}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          updateUnitPrice(item.product_id, isNaN(val) ? 0 : val);
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value || parseFloat(e.target.value) < 0) {
+                            updateUnitPrice(item.product_id, item.original_price_pence / 100);
+                          }
+                        }}
+                        className="w-16 px-1 py-0.5 font-mono text-xs border border-slate-300 rounded bg-white text-slate-900 font-semibold focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                        title="Click to edit unit price manually"
+                      />
+                      <span>each</span>
+                      {item.original_price_pence !== item.unit_price_pence && (
+                        <button
+                          type="button"
+                          onClick={() => resetUnitPrice(item.product_id)}
+                          className="text-[9px] font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 px-1 py-0.5 rounded border border-amber-200 transition-colors ml-1"
+                          title={`Reset to default price (${formatGBP(item.original_price_pence / 100)})`}
+                        >
+                          Reset
+                        </button>
+                      )}
                     </div>
                   </div>
 

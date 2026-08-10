@@ -65,8 +65,8 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
   // Primary Intake Fields
   const [device, setDevice] = useState("");
   const [issue, setIssue] = useState("");
-  const [initialQuote, setInitialQuote] = useState<number | "">(80);
-  const [deposit, setDeposit] = useState<number | "">(20);
+  const [initialQuote, setInitialQuote] = useState<number | "">("");
+  const [deposit, setDeposit] = useState<number | "">("");
 
   // Manual Warranty State (NO automatic defaults)
   const [warrantyTemplates, setWarrantyTemplates] = useState<any[]>([]);
@@ -81,7 +81,7 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
   const [color, setColor] = useState("");
   const [imei, setImei] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
-  const [labourCharge, setLabourCharge] = useState<number | "">(20);
+  const [labourCharge, setLabourCharge] = useState<number | "">("");
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [technicianId, setTechnicianId] = useState("");
   const [serviceMethod, setServiceMethod] = useState("walk-in");
@@ -101,6 +101,26 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
       setBookedTicket(null);
       return;
     }
+    setSelectedCustomer(null);
+    setCustomerSearch("");
+    setDevice("");
+    setIssue("");
+    setInitialQuote("");
+    setDeposit("");
+    setLabourCharge("");
+    setWarrantyDays("");
+    setWarrantyPolicy("");
+    setBrand("Apple");
+    setModel("");
+    setColor("");
+    setImei("");
+    setSerialNumber("");
+    setTechnicianId("");
+    setNotes("");
+    setConditionChecklist({});
+    setAccessoriesList([]);
+    setBookedTicket(null);
+    setErrorMsg(null);
     loadTemplatesAndTechs();
   }, [isOpen]);
 
@@ -444,7 +464,7 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
                 step="0.01"
                 min="0"
                 required
-                placeholder="200"
+                placeholder="0.00"
                 value={initialQuote}
                 onChange={(e) => setInitialQuote(e.target.value === "" ? "" : Number(e.target.value))}
                 className={inputCls}
@@ -456,7 +476,7 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="20"
+                placeholder="0.00"
                 value={deposit}
                 onChange={(e) => setDeposit(e.target.value === "" ? "" : Number(e.target.value))}
                 className={inputCls}

@@ -106,11 +106,11 @@ export function RepairA4InvoiceModal({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible printable-a4-area">
           
           {/* SINGLE A4 PAGE: REPAIR INVOICE & RECEIPT */}
-          <div className="bg-white border border-slate-300 shadow-lg p-5 sm:p-6 rounded-xl max-w-3xl mx-auto space-y-3 text-slate-900 font-sans a4-sheet-page">
+          <div className="bg-white border-0 shadow-none p-6 sm:p-8 rounded-none max-w-3xl mx-auto space-y-5 sm:space-y-6 text-slate-900 font-sans a4-sheet-page">
             
             {/* 1. SHOP HEADER & LOGO */}
-            <div className="flex justify-between items-start pb-2.5 border-b-2 border-slate-900 gap-4">
-              <div className="space-y-0.5">
+            <div className="flex justify-between items-start pb-4 border-b-2 border-slate-900 gap-4">
+              <div className="space-y-1">
                 <h1 className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">
                   PRESCOT MOBILES & COMPUTER SERVICES
                 </h1>
@@ -129,7 +129,7 @@ export function RepairA4InvoiceModal({
                 <img
                   src="/site-assets/prescot-logo.png"
                   alt="Prescot Mobile Shop Logo"
-                  className="h-18 sm:h-20 w-auto object-contain"
+                  className="h-28 sm:h-36 max-w-[260px] w-auto object-contain"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = "none";
                   }}
@@ -138,7 +138,7 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 2. INVOICE / RECEIPT NUMBER & DATE BAR */}
-            <div className="flex items-center justify-between gap-2 pt-0.5 font-mono text-xs border-b border-slate-300 pb-2">
+            <div className="flex items-center justify-between gap-2 pt-1 font-mono text-xs border-b border-slate-300 pb-3">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-600">INVOICE NO:</span>
                 <span className="font-extrabold text-sm text-brand">{repair.rep_number}</span>
@@ -153,11 +153,11 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 3. CUSTOMER DETAILS BOX */}
-            <div className="border border-slate-900 rounded-lg p-3 space-y-1 text-xs bg-slate-50/50">
-              <div className="font-bold text-[10px] text-slate-500 uppercase tracking-wider underline mb-0.5">
+            <div className="bg-slate-50 border-0 rounded-xl p-4 space-y-1.5 text-xs">
+              <div className="font-bold text-[10px] text-slate-500 uppercase tracking-wider underline mb-1">
                 CUSTOMER DETAILS
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="font-bold text-slate-700">NAME: </span>
                   <span className="font-extrabold text-slate-900 text-sm">
@@ -180,7 +180,7 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 4. MAIN REPAIR JOB & DEVICE BOX */}
-            <div className="border border-slate-900 rounded-lg p-3.5 space-y-2.5 text-xs">
+            <div className="bg-slate-50/50 border-0 rounded-xl p-4 space-y-3 text-xs">
               {/* Device Spec Rows */}
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 border-b border-slate-300 pb-2">
                 <div className="flex items-baseline">
@@ -327,8 +327,8 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 5. SHORT TERMS AND CONDITIONS SECTION */}
-            <div className="border border-slate-300 rounded-lg p-2.5 bg-slate-50/70 text-[9px] leading-snug text-slate-700 space-y-0.5">
-              <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-0.5 mb-0.5">
+            <div className="bg-slate-50 border-0 rounded-xl p-3.5 text-[9.5px] leading-relaxed text-slate-700 space-y-1">
+              <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-1 mb-1">
                 TERMS AND CONDITIONS
               </div>
               <p className="font-semibold text-slate-800 text-[9px] mb-0.5">
