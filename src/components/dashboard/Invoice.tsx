@@ -74,7 +74,7 @@ export function InvoiceModal({
   const subtotal =
     invoice.subtotal ??
     invoice.lines.reduce((acc, l) => acc + (l.total || l.quantity * l.unit_price), 0) +
-      (invoice.labour || 0);
+    (invoice.labour || 0);
   const discount = invoice.discount || 0;
   const grandTotal = invoice.total;
   const amountPaid = invoice.amountPaid ?? (invoice.paid ? grandTotal : 0);
@@ -171,9 +171,8 @@ export function InvoiceModal({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:static print:bg-white print:p-0 print-modal-overlay">
       <div
-        className={`bg-white rounded-2xl w-full max-h-[94vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print-modal-card ${
-          viewMode === "a4" ? "max-w-4xl" : "max-w-md"
-        }`}
+        className={`bg-white rounded-2xl w-full max-h-[94vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print-modal-card ${viewMode === "a4" ? "max-w-4xl" : "max-w-md"
+          }`}
       >
         {/* Header Toolbar (Screen Only) */}
         <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-100 bg-slate-900 text-white print:hidden shrink-0">
@@ -182,22 +181,20 @@ export function InvoiceModal({
               <button
                 type="button"
                 onClick={() => setViewMode("a4")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === "a4"
-                    ? "bg-brand text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${viewMode === "a4"
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
+                  }`}
               >
                 <FileText className="w-3.5 h-3.5" /> A4 Sales Invoice
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("thermal")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === "thermal"
-                    ? "bg-brand text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${viewMode === "thermal"
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
+                  }`}
               >
                 <Receipt className="w-3.5 h-3.5" /> Thermal 80mm
               </button>
@@ -409,7 +406,7 @@ export function InvoiceModal({
   );
 }
 
-{/* PROFESSIONAL A4 SALES INVOICE COMPONENT */}
+{/* PROFESSIONAL A4 SALES INVOICE COMPONENT */ }
 function A4SalesInvoiceBody({
   invoice,
   businessName,
@@ -677,7 +674,7 @@ function A4SalesInvoiceBody({
   );
 }
 
-{/* THERMAL 80MM RECEIPT BODY */}
+{/* THERMAL 80MM RECEIPT BODY */ }
 function InvoiceBody({
   invoice,
   businessName,

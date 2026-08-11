@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { saveRepairTicketV2, listWarrantyTemplates, listTechnicians, getRepairDetail } from "@/lib/repairs.functions";
 import { searchCustomers } from "@/lib/customers.functions";
 import { QuickAddCustomerModal } from "./QuickAddCustomerModal";
+import { SearchableComboboxInput } from "@/components/ui/SearchableComboboxInput";
+import { POPULAR_DEVICE_PRESETS, POPULAR_FAULT_PRESETS } from "@/constants/repairPresets";
 import { toast } from "sonner";
 import {
   Wrench,
@@ -431,23 +433,23 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
               <label className={labelCls}>
                 <Smartphone className="w-3.5 h-3.5 text-brand" /> Device *
               </label>
-              <input
-                type="text"
+              <SearchableComboboxInput
                 required
-                placeholder="e.g. iPhone 11"
+                isDeviceField={true}
                 value={device}
-                onChange={(e) => setDevice(e.target.value)}
+                onChange={setDevice}
+                placeholder="e.g. iPhone 11"
                 className={inputCls}
               />
             </div>
             <div>
               <label className={labelCls}>Reported Fault *</label>
-              <input
-                type="text"
+              <SearchableComboboxInput
                 required
-                placeholder="e.g. Screen blanking"
                 value={issue}
-                onChange={(e) => setIssue(e.target.value)}
+                onChange={setIssue}
+                options={POPULAR_FAULT_PRESETS}
+                placeholder="e.g. Screen blanking"
                 className={inputCls}
               />
             </div>
@@ -633,11 +635,10 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
                       <div
                         key={opt.id}
                         onClick={() => toggleCondition(opt.id)}
-                        className={`p-2 rounded-lg border text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${
-                          isChecked
-                            ? "bg-brand/10 border-brand text-brand"
-                            : "bg-muted/30 border-border text-muted-foreground"
-                        }`}
+                        className={`p-2 rounded-lg border text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${isChecked
+                          ? "bg-brand/10 border-brand text-brand"
+                          : "bg-muted/30 border-border text-muted-foreground"
+                          }`}
                       >
                         {isChecked ? (
                           <CheckSquare className="w-3.5 h-3.5 text-brand shrink-0" />
@@ -660,11 +661,10 @@ export function RepairIntakeModal({ isOpen, onClose, onSuccess }: RepairIntakeMo
                       <div
                         key={opt.id}
                         onClick={() => toggleAccessory(opt.id)}
-                        className={`p-2 rounded-lg border text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${
-                          isChecked
-                            ? "bg-brand/10 border-brand text-brand"
-                            : "bg-muted/30 border-border text-muted-foreground"
-                        }`}
+                        className={`p-2 rounded-lg border text-[11px] font-semibold cursor-pointer flex items-center gap-1.5 transition-colors ${isChecked
+                          ? "bg-brand/10 border-brand text-brand"
+                          : "bg-muted/30 border-border text-muted-foreground"
+                          }`}
                       >
                         {isChecked ? (
                           <CheckSquare className="w-3.5 h-3.5 text-brand shrink-0" />

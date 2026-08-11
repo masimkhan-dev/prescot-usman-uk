@@ -304,7 +304,7 @@ export const saveRepairTicketV2 = createServerFn({ method: "POST" })
             warranty_days: data.warranty_days ?? null,
             warranty_policy_text: data.warranty_policy_text ?? null,
           });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -610,7 +610,7 @@ export const finalizeRepairTicket = createServerFn({ method: "POST" })
           note: "Repair finalized & customer invoice completed",
           changed_by: context.userId,
         });
-      } catch (_) {}
+      } catch (_) { }
     }
 
     return result;
@@ -697,7 +697,7 @@ export const updateRepairStatus = createServerFn({ method: "POST" })
           note: data.note ?? null,
           changed_by: context.userId,
         });
-      } catch (_) {}
+      } catch (_) { }
 
       return { ok: true, new_status: data.new_status };
     }

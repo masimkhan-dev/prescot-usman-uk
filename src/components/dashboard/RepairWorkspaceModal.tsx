@@ -973,11 +973,10 @@ export function RepairWorkspaceModal({
                       key={m.id}
                       type="button"
                       onClick={() => setPayMethod(m.id as any)}
-                      className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
-                        payMethod === m.id
-                          ? "bg-brand text-white border-brand shadow-xs"
-                          : "bg-muted/40 hover:bg-muted text-muted-foreground border-border"
-                      }`}
+                      className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${payMethod === m.id
+                        ? "bg-brand text-white border-brand shadow-xs"
+                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-border"
+                        }`}
                     >
                       {m.label}
                     </button>
@@ -1139,11 +1138,10 @@ export function RepairWorkspaceModal({
                         key={m.id}
                         type="button"
                         onClick={() => setCollectPayMethod(m.id as any)}
-                        className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
-                          collectPayMethod === m.id
-                            ? "bg-brand text-white border-brand shadow-xs"
-                            : "bg-muted/40 hover:bg-muted text-muted-foreground border-border"
-                        }`}
+                        className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${collectPayMethod === m.id
+                          ? "bg-brand text-white border-brand shadow-xs"
+                          : "bg-muted/40 hover:bg-muted text-muted-foreground border-border"
+                          }`}
                       >
                         {m.label}
                       </button>

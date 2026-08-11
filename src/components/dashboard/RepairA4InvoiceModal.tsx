@@ -60,7 +60,7 @@ export function RepairA4InvoiceModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto print-modal-overlay">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 print-modal-card">
-        
+
         {/* Modal Toolbar (Screen Only) */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white shrink-0 print:hidden">
           <div className="flex items-center gap-2">
@@ -104,10 +104,10 @@ export function RepairA4InvoiceModal({
 
         {/* Scrollable Printable A4 Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible printable-a4-area">
-          
+
           {/* SINGLE A4 PAGE: REPAIR INVOICE & RECEIPT */}
           <div className="bg-white border-0 shadow-none p-6 sm:p-8 rounded-none max-w-3xl mx-auto space-y-5 sm:space-y-6 text-slate-900 font-sans a4-sheet-page">
-            
+
             {/* 1. SHOP HEADER & LOGO */}
             <div className="flex justify-between items-start pb-4 border-b-2 border-slate-900 gap-4">
               <div className="space-y-1">

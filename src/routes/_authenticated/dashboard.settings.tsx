@@ -151,11 +151,10 @@ function DashboardSettingsPage() {
         <button
           type="button"
           onClick={handleToggleTrainingMode}
-          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
-            trainingMode
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${trainingMode
               ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
               : "bg-muted text-muted-foreground border-border"
-          }`}
+            }`}
         >
           {trainingMode ? "Training Mode: ON" : "Training Mode: OFF"}
         </button>

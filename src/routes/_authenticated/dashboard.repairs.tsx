@@ -258,11 +258,10 @@ function RepairsPage() {
                   setActiveTab(t.id);
                   setPage(0);
                 }}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
-                  activeTab === t.id
-                    ? "bg-brand text-white shadow-xs"
-                    : "bg-muted/40 hover:bg-muted text-muted-foreground"
-                }`}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${activeTab === t.id
+                  ? "bg-brand text-white shadow-xs"
+                  : "bg-muted/40 hover:bg-muted text-muted-foreground"
+                  }`}
               >
                 {t.label}
               </button>
