@@ -33,7 +33,9 @@ export function ProductLabelModal({ product, onClose }: ProductLabelModalProps) 
           <div className="flex items-center gap-2">
             <Tag className="w-5 h-5 text-[#E11D48]" />
             <div>
-              <h2 className="font-extrabold text-slate-900 text-sm">Print Internal Product Label</h2>
+              <h2 className="font-extrabold text-slate-900 text-sm">
+                Print Internal Product Label
+              </h2>
               <p className="text-[11px] text-slate-500 font-medium">
                 Generate Code 128 barcode sticker for loose stock or shelf bins
               </p>
@@ -75,7 +77,10 @@ export function ProductLabelModal({ product, onClose }: ProductLabelModalProps) 
         </div>
 
         {/* Print Content Area */}
-        <div className="p-6 overflow-y-auto print:p-0 print:overflow-visible space-y-4" id="label-print-area">
+        <div
+          className="p-6 overflow-y-auto print:p-0 print:overflow-visible space-y-4"
+          id="label-print-area"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:grid-cols-1 print:gap-2">
             {Array.from({ length: labelQty }).map((_, idx) => (
               <div

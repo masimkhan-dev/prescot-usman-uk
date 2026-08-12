@@ -504,7 +504,9 @@
   font-weight: 500;
   color: var(--foreground);
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   &:focus {
     border-color: var(--brand);
     box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.1);
@@ -557,4 +559,3 @@
 @utility db-search-wrap {
   position: relative;
 }
-

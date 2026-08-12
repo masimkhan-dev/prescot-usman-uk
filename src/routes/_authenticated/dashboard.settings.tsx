@@ -4,8 +4,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSettings, saveSettings } from "@/lib/settings.functions";
 import { toastSuccess, toastError } from "@/lib/toast";
-import { PageHelpButton, isTrainingModeEnabled, setTrainingModeEnabled } from "@/components/dashboard/PageHelpButton";
-import { Settings, Save, Store, Receipt, ShieldAlert, Shield, Loader2, Sparkles } from "lucide-react";
+import {
+  PageHelpButton,
+  isTrainingModeEnabled,
+  setTrainingModeEnabled,
+} from "@/components/dashboard/PageHelpButton";
+import {
+  Settings,
+  Save,
+  Store,
+  Receipt,
+  ShieldAlert,
+  Shield,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/dashboard/settings")({
@@ -151,10 +164,11 @@ function DashboardSettingsPage() {
         <button
           type="button"
           onClick={handleToggleTrainingMode}
-          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${trainingMode
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+            trainingMode
               ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
               : "bg-muted text-muted-foreground border-border"
-            }`}
+          }`}
         >
           {trainingMode ? "Training Mode: ON" : "Training Mode: OFF"}
         </button>
@@ -342,7 +356,9 @@ function DashboardSettingsPage() {
             <Shield className="w-3.5 h-3.5 text-brand" /> Repair Warranty Templates & Defaults
           </h2>
           <p className="text-xs text-muted-foreground">
-            Centralized warranty templates for screens, batteries, small parts, and liquid damage treatment. Templates supply default days and policy text; individual repair tickets maintain independent snapshots.
+            Centralized warranty templates for screens, batteries, small parts, and liquid damage
+            treatment. Templates supply default days and policy text; individual repair tickets
+            maintain independent snapshots.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -357,10 +373,15 @@ function DashboardSettingsPage() {
               { title: "Liquid Damage Treatment", days: "0 Days", cat: "Diagnostic Only" },
               { title: "Customer Supplied Part", days: "90 Days", cat: "Workmanship Only" },
             ].map((t) => (
-              <div key={t.title} className="p-3 bg-muted/30 border border-border rounded-xl space-y-1 text-xs">
+              <div
+                key={t.title}
+                className="p-3 bg-muted/30 border border-border rounded-xl space-y-1 text-xs"
+              >
                 <div className="font-bold text-foreground flex items-center justify-between">
                   <span>{t.title}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-brand/10 text-brand text-[10px]">{t.days}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-brand/10 text-brand text-[10px]">
+                    {t.days}
+                  </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">{t.cat}</p>
               </div>

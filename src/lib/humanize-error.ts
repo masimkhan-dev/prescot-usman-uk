@@ -2,7 +2,10 @@
  * Humanize raw database, Supabase, network, and RPC errors into clear, friendly messages.
  * Preserves backend error meaning without confusing shop staff with raw stack traces or SQL codes.
  */
-export function humanizeError(err: unknown, fallback: string = "An unexpected error occurred. Please try again."): string {
+export function humanizeError(
+  err: unknown,
+  fallback: string = "An unexpected error occurred. Please try again.",
+): string {
   if (!err) return fallback;
 
   let message = "";
@@ -19,7 +22,11 @@ export function humanizeError(err: unknown, fallback: string = "An unexpected er
   const lower = message.toLowerCase();
 
   // Duplicate constraints
-  if (lower.includes("duplicate key") || lower.includes("unique constraint") || lower.includes("already exists")) {
+  if (
+    lower.includes("duplicate key") ||
+    lower.includes("unique constraint") ||
+    lower.includes("already exists")
+  ) {
     if (lower.includes("sku") || lower.includes("barcode")) {
       return "That SKU or barcode already exists.";
     }
@@ -52,7 +59,11 @@ export function humanizeError(err: unknown, fallback: string = "An unexpected er
   }
 
   // Stock errors
-  if (lower.includes("out of stock") || lower.includes("insufficient stock") || lower.includes("available units")) {
+  if (
+    lower.includes("out of stock") ||
+    lower.includes("insufficient stock") ||
+    lower.includes("available units")
+  ) {
     return "Selected product is out of stock or has insufficient quantity.";
   }
 
@@ -84,7 +95,12 @@ export function humanizeError(err: unknown, fallback: string = "An unexpected er
     .trim();
 
   // If the cleaned message is short and readable, return it capitalized
-  if (cleaned.length > 0 && cleaned.length < 120 && !cleaned.includes("at ") && !cleaned.includes("SELECT ")) {
+  if (
+    cleaned.length > 0 &&
+    cleaned.length < 120 &&
+    !cleaned.includes("at ") &&
+    !cleaned.includes("SELECT ")
+  ) {
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   }
 

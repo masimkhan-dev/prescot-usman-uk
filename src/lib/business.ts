@@ -11,12 +11,10 @@ export const BUSINESS = {
   phoneHref: "tel:+447479385163",
   whatsapp: "+44 7479 385163",
   whatsappHref: "https://wa.me/447479385163",
-  whatsappMessage: (msg: string) =>
-    `https://wa.me/447479385163?text=${encodeURIComponent(msg)}`,
+  whatsappMessage: (msg: string) => `https://wa.me/447479385163?text=${encodeURIComponent(msg)}`,
   email: "precotmobiles2026@gmail.com",
   emailHref: "mailto:precotmobiles2026@gmail.com",
-  mapsEmbed:
-    "https://www.google.com/maps?q=57+Eccleston+Street,+Prescot,+L34+5QH,+UK&output=embed",
+  mapsEmbed: "https://www.google.com/maps?q=57+Eccleston+Street,+Prescot,+L34+5QH,+UK&output=embed",
   mapsDirections:
     "https://www.google.com/maps/dir/?api=1&destination=57+Eccleston+Street,+Prescot,+L34+5QH,+UK",
   // Geo coordinates for LocalBusiness schema (approx — 57 Eccleston Street, Prescot)
@@ -102,8 +100,19 @@ export const NAV_LINKS = [
 ] as const;
 
 export const BRANDS_WE_REPAIR = [
-  "Apple", "Samsung", "Google", "Huawei", "Xiaomi", "Oppo", "OnePlus",
-  "Lenovo", "HP", "Dell", "PlayStation", "Xbox", "Nintendo",
+  "Apple",
+  "Samsung",
+  "Google",
+  "Huawei",
+  "Xiaomi",
+  "Oppo",
+  "OnePlus",
+  "Lenovo",
+  "HP",
+  "Dell",
+  "PlayStation",
+  "Xbox",
+  "Nintendo",
 ];
 
 export const WHY_CHOOSE_US = [
@@ -126,14 +135,38 @@ export const REPAIR_PROCESS = [
 ];
 
 export const FAQS = [
-  { q: "How long does a repair take?", a: "Most common repairs like screens and batteries are done the same day. Complex jobs may take 2–3 working days." },
-  { q: "Do I need an appointment?", a: "No — walk in during opening hours. For door-to-door or mail-in, message us to arrange a slot." },
-  { q: "Do you offer mail-in repairs?", a: "Yes. We accept mail-in repairs from across the UK and return your device fully insured." },
-  { q: "Do you offer door-to-door repairs?", a: "Yes — we collect and return your device across Prescot and nearby areas." },
-  { q: "Do you buy used phones?", a: "Yes, bring your device in and we'll assess it and make you a fair cash offer." },
-  { q: "Do you sell refurbished phones?", a: "Yes — we stock new, used and Grade A refurbished phones, laptops and consoles." },
-  { q: "Do you repair gaming consoles?", a: "Yes — PlayStation, Xbox and Nintendo. HDMI ports, controllers, fans and more." },
-  { q: "Do repairs come with a warranty?", a: "Eligible repairs come with a warranty on parts and workmanship. Ask us for exact terms before booking." },
+  {
+    q: "How long does a repair take?",
+    a: "Most common repairs like screens and batteries are done the same day. Complex jobs may take 2–3 working days.",
+  },
+  {
+    q: "Do I need an appointment?",
+    a: "No — walk in during opening hours. For door-to-door or mail-in, message us to arrange a slot.",
+  },
+  {
+    q: "Do you offer mail-in repairs?",
+    a: "Yes. We accept mail-in repairs from across the UK and return your device fully insured.",
+  },
+  {
+    q: "Do you offer door-to-door repairs?",
+    a: "Yes — we collect and return your device across Prescot and nearby areas.",
+  },
+  {
+    q: "Do you buy used phones?",
+    a: "Yes, bring your device in and we'll assess it and make you a fair cash offer.",
+  },
+  {
+    q: "Do you sell refurbished phones?",
+    a: "Yes — we stock new, used and Grade A refurbished phones, laptops and consoles.",
+  },
+  {
+    q: "Do you repair gaming consoles?",
+    a: "Yes — PlayStation, Xbox and Nintendo. HDMI ports, controllers, fans and more.",
+  },
+  {
+    q: "Do repairs come with a warranty?",
+    a: "Eligible repairs come with a warranty on parts and workmanship. Ask us for exact terms before booking.",
+  },
 ];
 
 export const LEGAL_LINKS = [
@@ -143,4 +176,3 @@ export const LEGAL_LINKS = [
   { to: "/warranty", label: "Warranty Policy" },
   { to: "/refunds", label: "Returns & Refund Policy" },
 ] as const;
-

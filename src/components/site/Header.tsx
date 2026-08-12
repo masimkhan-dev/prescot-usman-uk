@@ -70,7 +70,9 @@ export function Header() {
     <>
       <header
         className={`sticky top-0 z-40 border-b transition-all duration-200 ${
-          scrolled ? "border-[#DDD5CB] bg-[#FAF7F2]/95 shadow-sm backdrop-blur-xl" : "border-[#ECE8E1] bg-[#FAF7F2]"
+          scrolled
+            ? "border-[#DDD5CB] bg-[#FAF7F2]/95 shadow-sm backdrop-blur-xl"
+            : "border-[#ECE8E1] bg-[#FAF7F2]"
         }`}
       >
         <AnnouncementTicker />

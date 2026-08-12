@@ -67,14 +67,15 @@ export function InvoiceModal({
   const addressLine = settings?.address_line || BUSINESS.fullAddress;
   const phone = settings?.phone || BUSINESS.phone;
   const email = settings?.email || BUSINESS.email;
-  const footer = settings?.receipt_footer || "Thank you for choosing Prescot Mobiles & Computer Services";
+  const footer =
+    settings?.receipt_footer || "Thank you for choosing Prescot Mobiles & Computer Services";
   const vatRegistered = settings?.vat_registered === "true";
   const vatNumber = settings?.vat_number || "";
 
   const subtotal =
     invoice.subtotal ??
     invoice.lines.reduce((acc, l) => acc + (l.total || l.quantity * l.unit_price), 0) +
-    (invoice.labour || 0);
+      (invoice.labour || 0);
   const discount = invoice.discount || 0;
   const grandTotal = invoice.total;
   const amountPaid = invoice.amountPaid ?? (invoice.paid ? grandTotal : 0);
@@ -171,8 +172,9 @@ export function InvoiceModal({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:static print:bg-white print:p-0 print-modal-overlay">
       <div
-        className={`bg-white rounded-2xl w-full max-h-[94vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print-modal-card ${viewMode === "a4" ? "max-w-4xl" : "max-w-md"
-          }`}
+        className={`bg-white rounded-2xl w-full max-h-[94vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print-modal-card ${
+          viewMode === "a4" ? "max-w-4xl" : "max-w-md"
+        }`}
       >
         {/* Header Toolbar (Screen Only) */}
         <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-100 bg-slate-900 text-white print:hidden shrink-0">
@@ -181,20 +183,22 @@ export function InvoiceModal({
               <button
                 type="button"
                 onClick={() => setViewMode("a4")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${viewMode === "a4"
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-                  }`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "a4"
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
               >
                 <FileText className="w-3.5 h-3.5" /> A4 Sales Invoice
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("thermal")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${viewMode === "thermal"
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-                  }`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "thermal"
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
               >
                 <Receipt className="w-3.5 h-3.5" /> Thermal 80mm
               </button>
@@ -406,7 +410,9 @@ export function InvoiceModal({
   );
 }
 
-{/* PROFESSIONAL A4 SALES INVOICE COMPONENT */ }
+{
+  /* PROFESSIONAL A4 SALES INVOICE COMPONENT */
+}
 function A4SalesInvoiceBody({
   invoice,
   businessName,
@@ -449,12 +455,8 @@ function A4SalesInvoiceBody({
             {businessName.toUpperCase()}
           </h1>
           <p className="text-xs text-slate-700 font-medium">{addressLine}</p>
-          <p className="text-xs text-slate-700 font-medium">
-            Tel: {phone} | Mob: 07479 385163
-          </p>
-          <p className="text-xs text-slate-600 font-mono">
-            {email} | www.prescotmobiles.co.uk
-          </p>
+          <p className="text-xs text-slate-700 font-medium">Tel: {phone} | Mob: 07479 385163</p>
+          <p className="text-xs text-slate-600 font-mono">{email} | www.prescotmobiles.co.uk</p>
           {vatRegistered && vatNumber && (
             <p className="text-xs font-bold text-slate-800">VAT Reg: {vatNumber}</p>
           )}
@@ -612,10 +614,10 @@ function A4SalesInvoiceBody({
             {invoice.lines.map((l, i) =>
               l.warranty_days && l.warranty_days > 0 ? (
                 <li key={i} className="font-semibold">
-                  <span className="font-extrabold text-slate-900">{l.name}:</span>{" "}
-                  {l.warranty_days} Days Warranty
+                  <span className="font-extrabold text-slate-900">{l.name}:</span> {l.warranty_days}{" "}
+                  Days Warranty
                 </li>
-              ) : null
+              ) : null,
             )}
             {invoice.warrantyUntil && (
               <li className="font-semibold text-emerald-800">
@@ -674,7 +676,9 @@ function A4SalesInvoiceBody({
   );
 }
 
-{/* THERMAL 80MM RECEIPT BODY */ }
+{
+  /* THERMAL 80MM RECEIPT BODY */
+}
 function InvoiceBody({
   invoice,
   businessName,
@@ -722,9 +726,7 @@ function InvoiceBody({
           {businessName}
         </h2>
         <p className="text-[11px] font-medium text-slate-600 print:text-black">{addressLine}</p>
-        <p className="text-[11px] font-medium text-slate-600 print:text-black">
-          Tel: {phone}
-        </p>
+        <p className="text-[11px] font-medium text-slate-600 print:text-black">Tel: {phone}</p>
         <p className="text-[11px] font-medium text-slate-600 print:text-black">{email}</p>
         {vatRegistered && vatNumber && (
           <p className="text-[10px] font-bold text-slate-700 print:text-black mt-1">

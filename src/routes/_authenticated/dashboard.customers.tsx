@@ -8,7 +8,16 @@ import { toastSuccess, toastError } from "@/lib/toast";
 import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
 import { TableSkeleton } from "@/components/dashboard/TableSkeleton";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { Loader2, Plus, Trash2, Edit2, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Edit2,
+  Search,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/customers")({
   component: CustomersPage,
@@ -161,13 +170,17 @@ function CustomersPage() {
 
         {/* Marketing Consent */}
         <div className="p-3 bg-muted/30 border border-border rounded-xl space-y-1 text-xs">
-          <span className="font-bold text-foreground block text-[11px]">Marketing & Contact Consent</span>
+          <span className="font-bold text-foreground block text-[11px]">
+            Marketing & Contact Consent
+          </span>
           <div className="flex items-center gap-4 text-muted-foreground font-semibold">
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!(form as any).marketing_consent_whatsapp}
-                onChange={(e) => setForm({ ...form, marketing_consent_whatsapp: e.target.checked } as any)}
+                onChange={(e) =>
+                  setForm({ ...form, marketing_consent_whatsapp: e.target.checked } as any)
+                }
                 className="rounded border-border text-brand focus:ring-brand"
               />
               WhatsApp
@@ -176,7 +189,9 @@ function CustomersPage() {
               <input
                 type="checkbox"
                 checked={!!(form as any).marketing_consent_sms}
-                onChange={(e) => setForm({ ...form, marketing_consent_sms: e.target.checked } as any)}
+                onChange={(e) =>
+                  setForm({ ...form, marketing_consent_sms: e.target.checked } as any)
+                }
                 className="rounded border-border text-brand focus:ring-brand"
               />
               SMS
@@ -185,7 +200,9 @@ function CustomersPage() {
               <input
                 type="checkbox"
                 checked={!!(form as any).marketing_consent_email}
-                onChange={(e) => setForm({ ...form, marketing_consent_email: e.target.checked } as any)}
+                onChange={(e) =>
+                  setForm({ ...form, marketing_consent_email: e.target.checked } as any)
+                }
                 className="rounded border-border text-brand focus:ring-brand"
               />
               Email
@@ -210,7 +227,11 @@ function CustomersPage() {
             disabled={submitting}
             className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5 min-h-[40px] cursor-pointer"
           >
-            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            {submitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
             {editing ? "Update Customer" : "Save Customer"}
           </button>
         </div>
@@ -240,7 +261,9 @@ function CustomersPage() {
                     <td className="db-td font-bold text-ink">{c.name}</td>
                     <td className="db-td font-mono text-muted-foreground">{c.phone || "—"}</td>
                     <td className="db-td text-muted-foreground">{c.email || "—"}</td>
-                    <td className="db-td text-muted-foreground max-w-xs truncate">{c.address || "—"}</td>
+                    <td className="db-td text-muted-foreground max-w-xs truncate">
+                      {c.address || "—"}
+                    </td>
                     <td className="db-td text-right">
                       <button
                         type="button"
@@ -289,8 +312,8 @@ function CustomersPage() {
           {data.total > 25 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/30 text-xs text-muted-foreground">
               <span>
-                Showing {page * 25 + 1}–{Math.min((page + 1) * 25, data.total)} of{" "}
-                {data.total} customers
+                Showing {page * 25 + 1}–{Math.min((page + 1) * 25, data.total)} of {data.total}{" "}
+                customers
               </span>
               <div className="flex items-center gap-1">
                 <button

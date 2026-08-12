@@ -6,12 +6,7 @@ import { getReports } from "@/lib/reports.functions";
 import { formatGBP } from "@/lib/utils";
 import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
 import { CardSkeleton } from "@/components/dashboard/TableSkeleton";
-import {
-  AlertCircle,
-  Calendar,
-  BarChart3,
-  RotateCcw,
-} from "lucide-react";
+import { AlertCircle, Calendar, BarChart3, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/reports")({
   component: ReportsPage,
@@ -220,9 +215,14 @@ function ReportsPage() {
             color: data.netProfitPence >= 0 ? "text-emerald-700" : "text-destructive",
           },
         ].map((card) => (
-          <div key={card.label} className="db-card border-l-4 border-l-brand flex flex-col justify-between">
+          <div
+            key={card.label}
+            className="db-card border-l-4 border-l-brand flex flex-col justify-between"
+          >
             <div className="db-section-label">{card.label}</div>
-            <div className={`text-xl font-extrabold mt-2 ${card.color} tabular-nums tracking-tight truncate`}>
+            <div
+              className={`text-xl font-extrabold mt-2 ${card.color} tabular-nums tracking-tight truncate`}
+            >
               {card.value}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1 truncate">{card.sub}</div>

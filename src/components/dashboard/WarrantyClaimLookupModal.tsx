@@ -50,7 +50,9 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
           description: claimDesc.trim(),
         },
       });
-      setClaimSuccessMsg("Warranty claim filed successfully! Ticket flagged for technician inspection.");
+      setClaimSuccessMsg(
+        "Warranty claim filed successfully! Ticket flagged for technician inspection.",
+      );
       setClaimDesc("");
       setSelectedRepair(null);
     } catch (err: any) {
@@ -72,10 +74,15 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
             <ShieldCheck className="w-5 h-5 text-brand" />
             <div>
               <h3 className="font-extrabold text-sm text-white">Warranty Claim Lookup Tool</h3>
-              <p className="text-xs text-slate-300">Search by REP Ticket #, Customer Phone, or Device IMEI</p>
+              <p className="text-xs text-slate-300">
+                Search by REP Ticket #, Customer Phone, or Device IMEI
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -110,7 +117,11 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
               disabled={loading}
               className="px-5 py-2 bg-brand hover:bg-brand/90 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
               Lookup
             </button>
           </form>
@@ -118,7 +129,9 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
           {/* Search Results */}
           {searched && (
             <div className="space-y-3">
-              <h4 className="font-bold text-xs text-foreground">Lookup Results ({results.length})</h4>
+              <h4 className="font-bold text-xs text-foreground">
+                Lookup Results ({results.length})
+              </h4>
               {results.length > 0 ? (
                 <div className="space-y-3 max-h-72 overflow-y-auto">
                   {results.map((r) => {
@@ -129,13 +142,17 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
                       <div
                         key={r.id}
                         className={`p-4 rounded-2xl border text-xs space-y-2 transition-all ${
-                          isValid ? "bg-emerald-50/60 border-emerald-300 text-emerald-950" : "bg-rose-50/60 border-rose-200 text-rose-950"
+                          isValid
+                            ? "bg-emerald-50/60 border-emerald-300 text-emerald-950"
+                            : "bg-rose-50/60 border-rose-200 text-rose-950"
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="font-extrabold text-sm font-mono">{r.rep_number}</span>
-                            <span className="text-muted-foreground block text-[11px]">{r.device} • {r.customers?.name}</span>
+                            <span className="text-muted-foreground block text-[11px]">
+                              {r.device} • {r.customers?.name}
+                            </span>
                           </div>
                           <div>
                             {isValid ? (
@@ -166,8 +183,13 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
                         {isValid && (
                           <div className="pt-2">
                             {selectedRepair?.id === r.id ? (
-                              <form onSubmit={handleCreateClaim} className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2">
-                                <span className="font-bold text-emerald-900 block">File Warranty Claim</span>
+                              <form
+                                onSubmit={handleCreateClaim}
+                                className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2"
+                              >
+                                <span className="font-bold text-emerald-900 block">
+                                  File Warranty Claim
+                                </span>
                                 <textarea
                                   rows={2}
                                   required
@@ -177,10 +199,18 @@ export function WarrantyClaimLookupModal({ isOpen, onClose }: WarrantyClaimLooku
                                   className={inputCls}
                                 />
                                 <div className="flex justify-end gap-2">
-                                  <button type="button" onClick={() => setSelectedRepair(null)} className="px-3 py-1 text-muted-foreground">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedRepair(null)}
+                                    className="px-3 py-1 text-muted-foreground"
+                                  >
                                     Cancel
                                   </button>
-                                  <button type="submit" disabled={submittingClaim} className="px-4 py-1 bg-emerald-600 text-white font-bold rounded-lg">
+                                  <button
+                                    type="submit"
+                                    disabled={submittingClaim}
+                                    className="px-4 py-1 bg-emerald-600 text-white font-bold rounded-lg"
+                                  >
                                     Submit Claim
                                   </button>
                                 </div>

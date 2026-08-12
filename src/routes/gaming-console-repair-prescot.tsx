@@ -6,9 +6,17 @@ export const Route = createFileRoute("/gaming-console-repair-prescot")({
   head: () => ({
     meta: [
       { title: "Gaming Console Repair in Prescot | PS5, Xbox & Nintendo" },
-      { name: "description", content: "PlayStation, Xbox and Nintendo Switch repairs in Prescot. HDMI ports, controllers, fans, disc drives and overheating fixed by our local technicians." },
+      {
+        name: "description",
+        content:
+          "PlayStation, Xbox and Nintendo Switch repairs in Prescot. HDMI ports, controllers, fans, disc drives and overheating fixed by our local technicians.",
+      },
       { property: "og:title", content: "Gaming Console Repair in Prescot" },
-      { property: "og:description", content: "PS5, Xbox and Nintendo Switch repairs in Prescot — HDMI ports, controllers, disc drives and more." },
+      {
+        property: "og:description",
+        content:
+          "PS5, Xbox and Nintendo Switch repairs in Prescot — HDMI ports, controllers, disc drives and more.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/gaming-console-repair-prescot" },
       { name: "twitter:card", content: "summary_large_image" },

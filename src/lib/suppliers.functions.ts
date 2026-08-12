@@ -225,7 +225,9 @@ export const recordSupplierPayment = createServerFn({ method: "POST" })
 
 export const listSupplierPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: any) => z.object({ supplier_id: z.string().uuid() }).parse(input?.data ?? input))
+  .inputValidator((input: any) =>
+    z.object({ supplier_id: z.string().uuid() }).parse(input?.data ?? input),
+  )
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("supplier_payments")

@@ -8,9 +8,17 @@ export const Route = createFileRoute("/buy-sell-used-phones-prescot")({
   head: () => ({
     meta: [
       { title: "Buy & Sell Used Phones in Prescot | New, Used & Refurbished" },
-      { name: "description", content: "Buy new, used and refurbished mobile phones in Prescot — iPhone, Samsung, Pixel and more. We also buy your old phone. Fair prices, honest advice." },
+      {
+        name: "description",
+        content:
+          "Buy new, used and refurbished mobile phones in Prescot — iPhone, Samsung, Pixel and more. We also buy your old phone. Fair prices, honest advice.",
+      },
       { property: "og:title", content: "Buy & Sell Used Phones in Prescot" },
-      { property: "og:description", content: "New, used and refurbished phones for sale in Prescot. We also buy your old phone for cash." },
+      {
+        property: "og:description",
+        content:
+          "New, used and refurbished phones for sale in Prescot. We also buy your old phone for cash.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/buy-sell-used-phones-prescot" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -44,15 +52,20 @@ function Page() {
             Buy and sell mobile phones in Prescot.
           </h1>
           <p className="mt-4 text-muted-foreground max-w-2xl">
-            New, used and refurbished phones at honest local prices — and cash offers if you're selling. Pop into our shop on Eccleston Street or WhatsApp us for the latest stock.
+            New, used and refurbished phones at honest local prices — and cash offers if you're
+            selling. Pop into our shop on Eccleston Street or WhatsApp us for the latest stock.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a href={BUSINESS.phoneHref} className="btn-primary">
               <Phone className="w-4 h-4" /> Call {BUSINESS.phone}
             </a>
             <a
-              href={BUSINESS.whatsappMessage("Hi, I'd like to buy / sell a phone. Please share details.")}
-              target="_blank" rel="noreferrer" className="btn-whatsapp"
+              href={BUSINESS.whatsappMessage(
+                "Hi, I'd like to buy / sell a phone. Please share details.",
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-whatsapp"
             >
               <MessageCircle className="w-4 h-4" /> WhatsApp Us
             </a>

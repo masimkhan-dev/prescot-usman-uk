@@ -6,9 +6,17 @@ export const Route = createFileRoute("/laptop-computer-repair-prescot")({
   head: () => ({
     meta: [
       { title: "Laptop & Computer Repair in Prescot | Windows, Mac & PC" },
-      { name: "description", content: "Laptop and computer repairs in Prescot, L34. Screens, keyboards, batteries, SSD/RAM upgrades, Windows & macOS software issues. Free diagnostics." },
+      {
+        name: "description",
+        content:
+          "Laptop and computer repairs in Prescot, L34. Screens, keyboards, batteries, SSD/RAM upgrades, Windows & macOS software issues. Free diagnostics.",
+      },
       { property: "og:title", content: "Laptop & Computer Repair in Prescot" },
-      { property: "og:description", content: "Trusted laptop, desktop and Mac repairs in Prescot — hardware, software and upgrades." },
+      {
+        property: "og:description",
+        content:
+          "Trusted laptop, desktop and Mac repairs in Prescot — hardware, software and upgrades.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/laptop-computer-repair-prescot" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -79,7 +79,9 @@ export const closeShift = createServerFn({ method: "POST" })
 // getShiftReconciliation — reads from the v_shift_reconciliation view
 export const getShiftReconciliation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: any) => z.object({ shift_id: z.string().uuid() }).parse(input?.data ?? input))
+  .inputValidator((input: any) =>
+    z.object({ shift_id: z.string().uuid() }).parse(input?.data ?? input),
+  )
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("v_shift_reconciliation")

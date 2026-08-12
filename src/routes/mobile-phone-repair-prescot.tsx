@@ -6,9 +6,17 @@ export const Route = createFileRoute("/mobile-phone-repair-prescot")({
   head: () => ({
     meta: [
       { title: "Mobile Phone Repair in Prescot | Screen, Battery & More" },
-      { name: "description", content: "Fast, affordable mobile phone repairs in Prescot, L34. Screen replacement, battery, charging port, camera and water damage. Walk-in, door-to-door & mail-in." },
+      {
+        name: "description",
+        content:
+          "Fast, affordable mobile phone repairs in Prescot, L34. Screen replacement, battery, charging port, camera and water damage. Walk-in, door-to-door & mail-in.",
+      },
       { property: "og:title", content: "Mobile Phone Repair in Prescot" },
-      { property: "og:description", content: "Expert mobile phone repairs on Eccleston Street, Prescot — screens, batteries, ports and more." },
+      {
+        property: "og:description",
+        content:
+          "Expert mobile phone repairs on Eccleston Street, Prescot — screens, batteries, ports and more.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/mobile-phone-repair-prescot" },
       { name: "twitter:card", content: "summary_large_image" },

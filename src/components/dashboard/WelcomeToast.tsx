@@ -62,17 +62,9 @@ export function WelcomeToast() {
           className="fixed top-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 md:left-auto md:right-6 md:top-6 md:translate-x-0"
         >
           <motion.div
-            initial={
-              shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, y: -20, scale: 0.96 }
-            }
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              shouldReduceMotion
-                ? { opacity: 0 }
-                : { opacity: 0, y: -12, scale: 0.96 }
-            }
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.96 }}
             transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}

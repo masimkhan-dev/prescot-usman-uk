@@ -111,8 +111,8 @@ function ExpensesPage() {
             />
           </div>
           <p className="db-page-subtitle">
-            Log store operational costs. Immutable audit record — expenses can be voided with reason,
-            never deleted.
+            Log store operational costs. Immutable audit record — expenses can be voided with
+            reason, never deleted.
           </p>
         </div>
       </div>

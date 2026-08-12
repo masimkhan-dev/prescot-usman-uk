@@ -299,7 +299,9 @@ function DashboardPurchasesPage() {
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Select Supplier *</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Select Supplier *
+                </label>
                 <select
                   required
                   value={form.supplier_id}
@@ -316,7 +318,9 @@ function DashboardPurchasesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Add Inventory Item</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Add Inventory Item
+                </label>
                 <select
                   onChange={(e) => {
                     if (e.target.value) {
@@ -343,7 +347,9 @@ function DashboardPurchasesPage() {
                       key={idx}
                       className="flex items-center justify-between gap-2 p-2 bg-muted rounded-lg border border-border text-xs"
                     >
-                      <span className="font-bold text-ink flex-1 truncate">{item.product_name}</span>
+                      <span className="font-bold text-ink flex-1 truncate">
+                        {item.product_name}
+                      </span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -353,7 +359,9 @@ function DashboardPurchasesPage() {
                             const q = parseInt(e.target.value) || 1;
                             setForm((prev) => ({
                               ...prev,
-                              items: prev.items.map((it, i) => (i === idx ? { ...it, qty_ordered: q } : it)),
+                              items: prev.items.map((it, i) =>
+                                i === idx ? { ...it, qty_ordered: q } : it,
+                              ),
                             }));
                           }}
                           className="w-16 px-2 py-1 bg-background border border-border rounded text-xs font-bold text-center"
@@ -368,7 +376,7 @@ function DashboardPurchasesPage() {
                             setForm((prev) => ({
                               ...prev,
                               items: prev.items.map((it, i) =>
-                                i === idx ? { ...it, unit_cost_pence: c } : it
+                                i === idx ? { ...it, unit_cost_pence: c } : it,
                               ),
                             }));
                           }}
@@ -388,7 +396,9 @@ function DashboardPurchasesPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Notes / Tracking</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Notes / Tracking
+                </label>
                 <textarea
                   rows={2}
                   value={form.notes}

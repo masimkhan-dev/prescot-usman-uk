@@ -29,7 +29,7 @@ function UsersPage() {
   async function toggleRole(
     userId: string,
     role: "admin" | "staff" | "technician",
-    hasRole: boolean
+    hasRole: boolean,
   ) {
     if (userId === user?.id) {
       toastError("You cannot change your own roles. Ask another admin.");
@@ -98,7 +98,8 @@ function UsersPage() {
               </thead>
               <tbody>
                 {data?.map((u) => {
-                  const roles = (u.user_roles as { role: string }[] | null)?.map((r) => r.role) || [];
+                  const roles =
+                    (u.user_roles as { role: string }[] | null)?.map((r) => r.role) || [];
                   const isSelf = u.user_id === user?.id;
                   return (
                     <tr key={u.id} className="db-tr-hover">

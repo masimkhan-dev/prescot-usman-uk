@@ -13,6 +13,7 @@ import {
   BarChart3,
   Shield,
   Settings as SettingsIcon,
+  FileText,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -25,7 +26,7 @@ export interface MenuItem {
 export const menuItems: MenuItem[] = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { to: "/dashboard/pos", label: "POS Register", icon: ShoppingCart, roles: ["admin", "staff"] },
-  { to: "/dashboard/repairs", label: "Repair Tickets", icon: Wrench },
+  { to: "/dashboard/repairs", label: "Repair Invoices", icon: FileText },
   { to: "/dashboard/products", label: "Inventory & Parts", icon: Package },
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/suppliers", label: "Suppliers", icon: Truck, roles: ["admin", "staff"] },
@@ -116,5 +117,3 @@ export function DashboardSidebarNav({ onItemClick }: { onItemClick?: () => void 
 export function DashboardSidebar() {
   return <DashboardTopbarNav />;
 }
-
-

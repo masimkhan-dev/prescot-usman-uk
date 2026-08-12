@@ -73,9 +73,7 @@ function AuthPage() {
           </p>
 
           {error && (
-            <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-              {error}
-            </div>
+            <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">

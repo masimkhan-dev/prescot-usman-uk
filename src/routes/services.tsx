@@ -1,16 +1,38 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Smartphone, Laptop, Gamepad2, MessageCircle, Phone, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  Smartphone,
+  Laptop,
+  Gamepad2,
+  MessageCircle,
+  Phone,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
 import { BUSINESS } from "@/lib/business";
-import { WhyChooseUs, BrandsWeRepair, WarrantyBanner, FAQSection, RepairProcess } from "@/components/site/Sections";
+import {
+  WhyChooseUs,
+  BrandsWeRepair,
+  WarrantyBanner,
+  FAQSection,
+  RepairProcess,
+} from "@/components/site/Sections";
 
 export const Route = createFileRoute("/services")({
   head: () => ({
     meta: [
       { title: "Repair Services — Mobile, Laptop & Gaming | Prescot Mobiles" },
-      { name: "description", content: "Expert mobile, laptop, computer and gaming console repairs in Prescot. Screens, batteries, ports, water damage and more. Warranty on repairs." },
+      {
+        name: "description",
+        content:
+          "Expert mobile, laptop, computer and gaming console repairs in Prescot. Screens, batteries, ports, water damage and more. Warranty on repairs.",
+      },
       { property: "og:title", content: "Repair Services | Prescot Mobiles" },
-      { property: "og:description", content: "Mobile, laptop and gaming repairs in Prescot — walk-in, door-to-door and mail-in." },
+      {
+        property: "og:description",
+        content:
+          "Mobile, laptop and gaming repairs in Prescot — walk-in, door-to-door and mail-in.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/services" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -64,7 +86,6 @@ const categories = [
   },
 ];
 
-
 function ServicesPage() {
   return (
     <SiteLayout>
@@ -75,7 +96,8 @@ function ServicesPage() {
             Fast, honest repairs on the devices you use every day.
           </h1>
           <p className="mt-4 text-muted-foreground max-w-2xl">
-            From cracked screens to console HDMI ports, our technicians in Prescot handle it all. Walk-in, door-to-door or mail-in — you choose.
+            From cracked screens to console HDMI ports, our technicians in Prescot handle it all.
+            Walk-in, door-to-door or mail-in — you choose.
           </p>
         </div>
       </section>
@@ -99,7 +121,9 @@ function ServicesPage() {
               <div className="mt-6 flex flex-col gap-2">
                 <a
                   href={BUSINESS.whatsappMessage(`Hi, I'd like a quote for ${c.title}.`)}
-                  target="_blank" rel="noreferrer" className="btn-whatsapp"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-whatsapp"
                 >
                   <MessageCircle className="w-4 h-4" /> Enquire on WhatsApp
                 </a>
@@ -121,12 +145,23 @@ function ServicesPage() {
       <section className="section-pad">
         <div className="container-page rounded-3xl bg-ink text-white p-10 md:p-14 flex flex-wrap items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold">Not sure what's wrong with your device?</h2>
-            <p className="mt-2 text-white/70">Send us a message — we'll diagnose and give you a fair quote.</p>
+            <h2 className="text-2xl md:text-3xl font-bold">
+              Not sure what's wrong with your device?
+            </h2>
+            <p className="mt-2 text-white/70">
+              Send us a message — we'll diagnose and give you a fair quote.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a href={BUSINESS.phoneHref} className="btn-primary"><Phone className="w-4 h-4" /> Call Now</a>
-            <a href={BUSINESS.whatsappMessage("Hi, I need help diagnosing my device.")} target="_blank" rel="noreferrer" className="btn-whatsapp">
+            <a href={BUSINESS.phoneHref} className="btn-primary">
+              <Phone className="w-4 h-4" /> Call Now
+            </a>
+            <a
+              href={BUSINESS.whatsappMessage("Hi, I need help diagnosing my device.")}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-whatsapp"
+            >
               <MessageCircle className="w-4 h-4" /> WhatsApp
             </a>
           </div>

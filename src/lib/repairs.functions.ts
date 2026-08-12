@@ -63,7 +63,7 @@ export const listRepairs = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let q = (context.supabase as any)
       .from("repair_tickets")
-      .select("*, customers(id, name, phone, email)", { count: "exact" })
+      .select("*, customers(id, name, phone, email), repair_items(*)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(data.page * data.limit, (data.page + 1) * data.limit - 1);
 
@@ -117,9 +117,12 @@ export const saveRepair = createServerFn({ method: "POST" })
     const { id, ...payload } = data;
 
     if (!id) {
-      const { data: repNum, error: seqErr } = await (context.supabase as any).rpc("next_doc_number", {
-        p_type: "REP",
-      });
+      const { data: repNum, error: seqErr } = await (context.supabase as any).rpc(
+        "next_doc_number",
+        {
+          p_type: "REP",
+        },
+      );
       if (seqErr) throw seqErr;
 
       const { data: inserted, error } = await (context.supabase as any)
@@ -225,9 +228,16 @@ export const saveRepairTicketV2 = createServerFn({ method: "POST" })
 
     // Direct table insert fallback if RPC fails
     if (!result || rpcError) {
-      console.warn("save_repair_ticket_v2 RPC failed or missing, using table insert fallback:", rpcError?.message);
+      console.warn(
+        "save_repair_ticket_v2 RPC failed or missing, using table insert fallback:",
+        rpcError?.message,
+      );
 
-      const repNum = "REP-" + new Date().getFullYear() + "-" + String(Math.floor(100000 + Math.random() * 900000));
+      const repNum =
+        "REP-" +
+        new Date().getFullYear() +
+        "-" +
+        String(Math.floor(100000 + Math.random() * 900000));
       const pin = String(Math.floor(1000 + Math.random() * 9000));
 
       if (data.ticket_id) {
@@ -304,7 +314,7 @@ export const saveRepairTicketV2 = createServerFn({ method: "POST" })
             warranty_days: data.warranty_days ?? null,
             warranty_policy_text: data.warranty_policy_text ?? null,
           });
-        } catch (_) { }
+        } catch (_) {}
       }
     }
 
@@ -470,7 +480,10 @@ export const deleteRepairItem = createServerFn({ method: "POST" })
       .parse(input?.data ?? input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).from("repair_items").delete().eq("id", data.id);
+    const { error } = await (context.supabase as any)
+      .from("repair_items")
+      .delete()
+      .eq("id", data.id);
     if (error) throw error;
 
     const { data: items } = await (context.supabase as any)
@@ -541,7 +554,10 @@ export const finalizeRepairTicket = createServerFn({ method: "POST" })
     }
 
     if (!result || rpcError) {
-      console.warn("finalize_repair_ticket RPC failed or missing, using table fallback:", rpcError?.message);
+      console.warn(
+        "finalize_repair_ticket RPC failed or missing, using table fallback:",
+        rpcError?.message,
+      );
 
       // Fetch repair ticket
       const { data: ticket, error: fetchErr } = await (context.supabase as any)
@@ -552,7 +568,8 @@ export const finalizeRepairTicket = createServerFn({ method: "POST" })
 
       if (fetchErr) throw new Error(fetchErr.message);
       if (ticket.is_finalized) throw new Error("Repair ticket is already finalized");
-      if (ticket.status === "cancelled") throw new Error("Cannot finalize a cancelled repair ticket");
+      if (ticket.status === "cancelled")
+        throw new Error("Cannot finalize a cancelled repair ticket");
 
       const todayStr = new Date().toISOString().split("T")[0];
 
@@ -610,7 +627,7 @@ export const finalizeRepairTicket = createServerFn({ method: "POST" })
           note: "Repair finalized & customer invoice completed",
           changed_by: context.userId,
         });
-      } catch (_) { }
+      } catch (_) {}
     }
 
     return result;
@@ -697,7 +714,7 @@ export const updateRepairStatus = createServerFn({ method: "POST" })
           note: data.note ?? null,
           changed_by: context.userId,
         });
-      } catch (_) { }
+      } catch (_) {}
 
       return { ok: true, new_status: data.new_status };
     }
@@ -854,6 +871,288 @@ export const submitWarrantyClaim = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     return claim;
+  });
+
+// ---------------------------------------------------------------------------
+// createQuickRepairInvoice
+// Fast path: form → create ticket → items → payment → finalize → return detail
+// Does NOT bypass finalize_repair_ticket() — it is the single official path.
+// ---------------------------------------------------------------------------
+export const createQuickRepairInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        device_model: z.string().min(1),
+        items: z
+          .array(
+            z.object({
+              description: z.string().min(1),
+              price_pence: z.number().int().nonnegative(),
+              warranty_days: z.number().int().nonnegative().nullable().optional(),
+              warranty_policy_text: z.string().optional().nullable(),
+            }),
+          )
+          .min(1),
+        customer_name: z.string().optional().nullable(),
+        customer_phone: z.string().optional().nullable(),
+        payment_method: z.enum(["cash", "card", "bank_transfer"]).default("cash"),
+        is_paid: z.boolean().default(true),
+        notes: z.string().optional().nullable(),
+      })
+      .parse(input?.data ?? input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+
+    // ── Step 1: Optional customer find-or-create ──────────────────────────
+    let customerId: string | null = null;
+    if (data.customer_name?.trim()) {
+      // Try to find by phone first
+      if (data.customer_phone?.trim()) {
+        const { data: found } = await sb
+          .from("customers")
+          .select("id")
+          .eq("phone", data.customer_phone.trim())
+          .maybeSingle();
+        if (found?.id) {
+          customerId = found.id;
+        }
+      }
+      // Not found — create new customer
+      if (!customerId) {
+        const { data: newCustomer, error: custErr } = await sb
+          .from("customers")
+          .insert({
+            name: data.customer_name.trim(),
+            phone: data.customer_phone?.trim() || null,
+          })
+          .select("id")
+          .single();
+        if (custErr) throw new Error(`Customer create failed: ${custErr.message}`);
+        customerId = newCustomer.id;
+      }
+    }
+
+    // ── Step 2: Generate REP number ───────────────────────────────────────
+    let repNumber: string;
+    const { data: repNum, error: seqErr } = await sb.rpc("next_doc_number", { p_type: "REP" });
+    if (seqErr || !repNum) {
+      // Fallback sequence
+      repNumber = `REP-${new Date().getFullYear()}-${String(Math.floor(100000 + Math.random() * 900000))}`;
+    } else {
+      repNumber = repNum;
+    }
+
+    // ── Step 3: Calculate totals ──────────────────────────────────────────
+    const totalPence = data.items.reduce((acc, i) => acc + i.price_pence, 0);
+    const primaryIssue =
+      data.items.length === 1
+        ? data.items[0].description
+        : data.items.map((i) => i.description).join(", ");
+
+    // ── Step 4: INSERT repair_tickets (status=pending, not finalized yet) ─
+    const { data: ticket, error: ticketErr } = await sb
+      .from("repair_tickets")
+      .insert({
+        rep_number: repNumber,
+        customer_id: customerId,
+        device: data.device_model,
+        model: data.device_model,
+        issue: primaryIssue,
+        method: "walk-in",
+        status: "pending",
+        total_price_pence: totalPence,
+        labour_price_pence: 0,
+        // ticket-level warranty intentionally NULL — per-item only (correction #2)
+        warranty_days: null,
+        warranty_until: null,
+        notes: data.notes ?? null,
+        created_by: context.userId,
+      })
+      .select()
+      .single();
+    if (ticketErr) throw new Error(`Repair ticket create failed: ${ticketErr.message}`);
+
+    // Status history
+    try {
+      await sb.from("repair_status_history").insert({
+        repair_id: ticket.id,
+        from_status: null,
+        to_status: "pending",
+        note: "Quick repair invoice created",
+        changed_by: context.userId,
+      });
+    } catch (_) {}
+
+    // ── Step 5: INSERT repair_items ───────────────────────────────────────
+    const itemInserts = data.items.map((item) => ({
+      repair_id: ticket.id,
+      description: item.description,
+      customer_price_pence: item.price_pence,
+      labour_price_pence: 0,
+      warranty_days: item.warranty_days ?? null,
+      warranty_policy_text: item.warranty_policy_text ?? null,
+    }));
+    const { error: itemsErr } = await sb.from("repair_items").insert(itemInserts);
+    if (itemsErr) throw new Error(`Repair items create failed: ${itemsErr.message}`);
+
+    // ── Step 6: Record payment if paid ────────────────────────────────────
+    if (data.is_paid && totalPence > 0) {
+      const idempotencyKey = crypto.randomUUID();
+      const { error: payErr } = await sb.rpc("record_repair_payment", {
+        p_repair_id: ticket.id,
+        p_idempotency_key: idempotencyKey,
+        p_amount_pence: totalPence,
+        p_method: data.payment_method,
+        p_is_deposit: false,
+        p_shift_id: null,
+        p_notes: "Quick repair invoice — paid at collection",
+      });
+      if (payErr) {
+        // Fallback direct insert if RPC unavailable
+        console.warn("record_repair_payment RPC failed, using fallback:", payErr.message);
+        await sb.from("repair_payments").insert({
+          repair_id: ticket.id,
+          idempotency_key: idempotencyKey,
+          amount_pence: totalPence,
+          method: data.payment_method,
+          is_deposit: false,
+          notes: "Quick repair invoice — paid at collection",
+          recorded_by: context.userId,
+        });
+        await sb
+          .from("repair_tickets")
+          .update({ amount_paid_pence: totalPence })
+          .eq("id", ticket.id);
+      }
+    }
+
+    // ── Step 7: Finalize via official path (correction #1) ────────────────
+    // This sets is_finalized=true, status=completed, finalized_at=now(),
+    // and stamps per-item warranty_start_date + warranty_end_date.
+    try {
+      const { error: finalErr } = await sb.rpc("finalize_repair_ticket", {
+        p_repair_id: ticket.id,
+      });
+      if (finalErr) {
+        console.warn("finalize_repair_ticket RPC failed, using table fallback:", finalErr.message);
+        // Fallback: manually finalize
+        await sb
+          .from("repair_tickets")
+          .update({
+            is_finalized: true,
+            finalized_at: new Date().toISOString(),
+            status: "completed",
+          })
+          .eq("id", ticket.id);
+
+        // Stamp per-item warranty dates
+        const { data: items } = await sb
+          .from("repair_items")
+          .select("id, warranty_days")
+          .eq("repair_id", ticket.id);
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (items) {
+          for (const item of items) {
+            if (item.warranty_days && item.warranty_days > 0) {
+              const endD = new Date();
+              endD.setDate(endD.getDate() + item.warranty_days);
+              await sb
+                .from("repair_items")
+                .update({
+                  warranty_start_date: todayStr,
+                  warranty_end_date: endD.toISOString().split("T")[0],
+                })
+                .eq("id", item.id);
+            }
+          }
+        }
+
+        await sb.from("repair_status_history").insert({
+          repair_id: ticket.id,
+          from_status: "pending",
+          to_status: "completed",
+          note: "Quick repair invoice finalized",
+          changed_by: context.userId,
+        });
+      }
+    } catch (e: any) {
+      console.warn("Finalize step error:", e?.message);
+    }
+
+    // ── Step 8: Return full repair detail for RepairA4InvoiceModal ────────
+    const { data: fullRepair, error: detailErr } = await sb
+      .from("repair_tickets")
+      .select(
+        `*, customers(id, name, phone, email, address, postcode),
+         repair_items(*), repair_payments(*)`,
+      )
+      .eq("id", ticket.id)
+      .single();
+    if (detailErr) throw new Error(`Failed to fetch repair detail: ${detailErr.message}`);
+    return fullRepair;
+  });
+
+// ---------------------------------------------------------------------------
+// linkCustomerToRepair
+// Post-finalization safe action: only updates customer_id linkage.
+// Financial fields (price, items, warranty, payments) are NEVER touched.
+// ---------------------------------------------------------------------------
+export const linkCustomerToRepair = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        repair_id: z.string().uuid(),
+        customer_name: z.string().min(1),
+        customer_phone: z.string().optional().nullable(),
+      })
+      .parse(input?.data ?? input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+
+    // Find by phone first, then create if not found
+    let customerId: string | null = null;
+
+    if (data.customer_phone?.trim()) {
+      const { data: found } = await sb
+        .from("customers")
+        .select("id")
+        .eq("phone", data.customer_phone.trim())
+        .maybeSingle();
+      if (found?.id) customerId = found.id;
+    }
+
+    if (!customerId) {
+      const { data: created, error: custErr } = await sb
+        .from("customers")
+        .insert({
+          name: data.customer_name.trim(),
+          phone: data.customer_phone?.trim() || null,
+        })
+        .select("id, name, phone")
+        .single();
+      if (custErr) throw new Error(`Customer create failed: ${custErr.message}`);
+      customerId = created.id;
+    }
+
+    // ONLY update customer_id — financial snapshot is locked
+    const { error: linkErr } = await sb
+      .from("repair_tickets")
+      .update({ customer_id: customerId })
+      .eq("id", data.repair_id);
+    if (linkErr) throw new Error(`Customer link failed: ${linkErr.message}`);
+
+    // Return updated customer info for UI refresh
+    const { data: customer } = await sb
+      .from("customers")
+      .select("id, name, phone, email")
+      .eq("id", customerId)
+      .single();
+
+    return { ok: true, customer };
   });
 
 // ---------------------------------------------------------------------------

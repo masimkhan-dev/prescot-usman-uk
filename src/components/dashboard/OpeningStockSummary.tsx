@@ -44,8 +44,7 @@ export function OpeningStockSummary() {
             <Package className="w-3 h-3 text-slate-400" /> Opening Products
           </div>
           <div className="text-lg font-black text-white mt-1 tabular-nums">
-            {data.totalProducts}{" "}
-            <span className="text-xs text-slate-400 font-medium">items</span>
+            {data.totalProducts} <span className="text-xs text-slate-400 font-medium">items</span>
           </div>
         </div>
 

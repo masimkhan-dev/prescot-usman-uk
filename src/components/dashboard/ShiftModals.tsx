@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  openShift,
-  closeShift,
-  getShiftReconciliation,
-  listShifts,
-} from "@/lib/shifts.functions";
+import { openShift, closeShift, getShiftReconciliation, listShifts } from "@/lib/shifts.functions";
 import { formatGBP } from "@/lib/utils";
 import {
   X,
@@ -302,9 +297,7 @@ export function CloseShiftModal({ shiftId, onClose, onSuccess }: CloseShiftModal
           )}
           <div className="flex justify-between border-t border-slate-300 pt-2 font-black text-slate-900 text-sm">
             <span>Expected Cash in Drawer:</span>
-            <span className="font-mono text-[#E11D48]">
-              {formatGBP(expectedPence / 100)}
-            </span>
+            <span className="font-mono text-[#E11D48]">{formatGBP(expectedPence / 100)}</span>
           </div>
         </div>
 
@@ -332,8 +325,8 @@ export function CloseShiftModal({ shiftId, onClose, onSuccess }: CloseShiftModal
                 variancePence === 0
                   ? "bg-emerald-50 border-emerald-200 text-emerald-950"
                   : variancePence < 0
-                  ? "bg-rose-50 border-rose-200 text-rose-950"
-                  : "bg-amber-50 border-amber-200 text-amber-950"
+                    ? "bg-rose-50 border-rose-200 text-rose-950"
+                    : "bg-amber-50 border-amber-200 text-amber-950"
               }`}
             >
               <span>Difference / Variance:</span>
@@ -341,8 +334,8 @@ export function CloseShiftModal({ shiftId, onClose, onSuccess }: CloseShiftModal
                 {variancePence === 0
                   ? "Balanced (£0.00)"
                   : variancePence < 0
-                  ? `Short -${formatGBP(Math.abs(variancePence) / 100)}`
-                  : `Over +${formatGBP(variancePence / 100)}`}
+                    ? `Short -${formatGBP(Math.abs(variancePence) / 100)}`
+                    : `Over +${formatGBP(variancePence / 100)}`}
               </span>
             </div>
           )}
@@ -391,10 +384,7 @@ interface ReconciliationResultModalProps {
   onClose: () => void;
 }
 
-export function ShiftReconciliationResultModal({
-  data,
-  onClose,
-}: ReconciliationResultModalProps) {
+export function ShiftReconciliationResultModal({ data, onClose }: ReconciliationResultModalProps) {
   const variance = data.difference_pence;
   const isBalanced = variance === 0;
   const isShort = variance < 0;
@@ -408,8 +398,8 @@ export function ShiftReconciliationResultModal({
               isBalanced
                 ? "bg-emerald-100 text-emerald-600"
                 : isShort
-                ? "bg-rose-100 text-rose-600"
-                : "bg-amber-100 text-amber-600"
+                  ? "bg-rose-100 text-rose-600"
+                  : "bg-amber-100 text-amber-600"
             }`}
           >
             <CheckCircle2 className="w-6 h-6" />
@@ -421,9 +411,7 @@ export function ShiftReconciliationResultModal({
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 text-xs">
           <div className="flex justify-between text-slate-600">
             <span>Opening Float:</span>
-            <span className="font-mono font-bold">
-              {formatGBP(data.opening_float_pence / 100)}
-            </span>
+            <span className="font-mono font-bold">{formatGBP(data.opening_float_pence / 100)}</span>
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Cash Sales:</span>
@@ -458,9 +446,7 @@ export function ShiftReconciliationResultModal({
 
           <div className="border-t border-slate-200 pt-2 flex justify-between font-extrabold text-slate-800">
             <span>Expected Cash:</span>
-            <span className="font-mono">
-              {formatGBP(data.computed_expected_cash_pence / 100)}
-            </span>
+            <span className="font-mono">{formatGBP(data.computed_expected_cash_pence / 100)}</span>
           </div>
           <div className="flex justify-between font-extrabold text-slate-800">
             <span>Actual Counted Cash:</span>
@@ -472,8 +458,8 @@ export function ShiftReconciliationResultModal({
               isBalanced
                 ? "bg-emerald-100 text-emerald-900"
                 : isShort
-                ? "bg-rose-100 text-rose-900"
-                : "bg-amber-100 text-amber-900"
+                  ? "bg-rose-100 text-rose-900"
+                  : "bg-amber-100 text-amber-900"
             }`}
           >
             <span>Variance / Status:</span>
@@ -481,8 +467,8 @@ export function ShiftReconciliationResultModal({
               {isBalanced
                 ? "Balanced (£0.00)"
                 : isShort
-                ? `Short -${formatGBP(Math.abs(variance) / 100)}`
-                : `Over +${formatGBP(variance / 100)}`}
+                  ? `Short -${formatGBP(Math.abs(variance) / 100)}`
+                  : `Over +${formatGBP(variance / 100)}`}
             </span>
           </div>
         </div>
@@ -574,12 +560,8 @@ export function ShiftHistoryModal({ onClose }: ShiftHistoryModalProps) {
                   return (
                     <tr key={s.id} className="hover:bg-slate-50 font-medium">
                       <td className="p-2.5 font-bold text-slate-900">{openedDate}</td>
-                      <td className="p-2.5 text-slate-600">
-                        {s.profiles?.full_name || "Staff"}
-                      </td>
-                      <td className="p-2.5 font-mono">
-                        {formatGBP(s.opening_float_pence / 100)}
-                      </td>
+                      <td className="p-2.5 text-slate-600">{s.profiles?.full_name || "Staff"}</td>
+                      <td className="p-2.5 font-mono">{formatGBP(s.opening_float_pence / 100)}</td>
                       <td className="p-2.5 font-mono">
                         {s.expected_cash_pence !== null
                           ? formatGBP(s.expected_cash_pence / 100)
@@ -597,8 +579,8 @@ export function ShiftHistoryModal({ onClose }: ShiftHistoryModalProps) {
                               diff === 0
                                 ? "text-emerald-600"
                                 : diff < 0
-                                ? "text-rose-600"
-                                : "text-amber-600"
+                                  ? "text-rose-600"
+                                  : "text-amber-600"
                             }`}
                           >
                             {diff === 0 ? "£0.00" : formatGBP(diff / 100)}

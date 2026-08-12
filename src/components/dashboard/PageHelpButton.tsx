@@ -97,9 +97,7 @@ export function PageHelpButton({
             <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-brand" />
-                <h3 className="font-bold text-sm text-foreground">
-                  How to use: {pageTitle}
-                </h3>
+                <h3 className="font-bold text-sm text-foreground">How to use: {pageTitle}</h3>
               </div>
               <button
                 type="button"

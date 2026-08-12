@@ -13,7 +13,11 @@ export function toastSuccess(message: string, duration = 3500) {
   });
 }
 
-export function toastError(err: unknown, fallbackMessage = "Action failed. Please try again.", duration = 6000) {
+export function toastError(
+  err: unknown,
+  fallbackMessage = "Action failed. Please try again.",
+  duration = 6000,
+) {
   const humanMsg = humanizeError(err, fallbackMessage);
   toast.error(humanMsg, {
     id: humanMsg,

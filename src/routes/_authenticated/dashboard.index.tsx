@@ -108,16 +108,28 @@ function DashboardOverview() {
             Quick Actions
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2.5">
-            <Link to="/dashboard/pos" className="btn-primary text-center !py-3 !text-xs min-h-[44px]">
+            <Link
+              to="/dashboard/pos"
+              className="btn-primary text-center !py-3 !text-xs min-h-[44px]"
+            >
               New Sale
             </Link>
-            <Link to="/dashboard/repairs" className="btn-dark text-center !py-3 !text-xs min-h-[44px]">
+            <Link
+              to="/dashboard/repairs"
+              className="btn-dark text-center !py-3 !text-xs min-h-[44px]"
+            >
               New Repair
             </Link>
-            <Link to="/dashboard/products" className="btn-outline text-center !py-3 !text-xs min-h-[44px]">
+            <Link
+              to="/dashboard/products"
+              className="btn-outline text-center !py-3 !text-xs min-h-[44px]"
+            >
               Add Product
             </Link>
-            <Link to="/dashboard/expenses" className="btn-outline text-center !py-3 !text-xs min-h-[44px]">
+            <Link
+              to="/dashboard/expenses"
+              className="btn-outline text-center !py-3 !text-xs min-h-[44px]"
+            >
               Add Expense
             </Link>
           </div>

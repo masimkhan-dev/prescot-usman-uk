@@ -246,15 +246,11 @@ export function CSVImportModal({
       }));
 
       const res = await importFn({ data: payload });
-      toast.success(
-        `Successfully imported ${res.imported_count} opening stock products!`,
-      );
+      toast.success(`Successfully imported ${res.imported_count} opening stock products!`);
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to import opening stock",
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to import opening stock");
       setStep("preview");
     } finally {
       setIsSubmitting(false);
@@ -269,9 +265,7 @@ export function CSVImportModal({
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-[#E11D48]" />
             <div>
-              <h2 className="font-extrabold text-slate-900 text-sm">
-                Bulk Opening Stock Import
-              </h2>
+              <h2 className="font-extrabold text-slate-900 text-sm">Bulk Opening Stock Import</h2>
               <p className="text-[11px] text-slate-500 font-medium">
                 Import initial shop inventory via CSV spreadsheet with verified accounting logs
               </p>
@@ -332,9 +326,7 @@ export function CSVImportModal({
               {/* Sample Template Download */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-100 rounded-xl text-xs">
                 <div>
-                  <div className="font-bold text-slate-900">
-                    Need a CSV format template?
-                  </div>
+                  <div className="font-bold text-slate-900">Need a CSV format template?</div>
                   <div className="text-[11px] text-slate-500">
                     Download pre-formatted template with example rows
                   </div>
@@ -424,20 +416,12 @@ export function CSVImportModal({
                     {parsedRows.map((r) => (
                       <tr
                         key={r.lineNumber}
-                        className={
-                          !r.isValid ? "bg-rose-50/50" : "hover:bg-slate-50"
-                        }
+                        className={!r.isValid ? "bg-rose-50/50" : "hover:bg-slate-50"}
                       >
-                        <td className="px-3 py-2 font-mono text-slate-400">
-                          #{r.lineNumber}
-                        </td>
-                        <td className="px-3 py-2 font-bold text-slate-900">
-                          {r.name || "—"}
-                        </td>
+                        <td className="px-3 py-2 font-mono text-slate-400">#{r.lineNumber}</td>
+                        <td className="px-3 py-2 font-bold text-slate-900">{r.name || "—"}</td>
                         <td className="px-3 py-2 text-slate-600">{r.category || "—"}</td>
-                        <td className="px-3 py-2 font-mono text-slate-500">
-                          {r.sku || "—"}
-                        </td>
+                        <td className="px-3 py-2 font-mono text-slate-500">{r.sku || "—"}</td>
                         <td className="px-3 py-2 text-right font-mono">
                           {formatGBP(r.cost_price_pounds)}
                         </td>

@@ -43,7 +43,7 @@ function DashboardSuppliersPage() {
     (s: any) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       (s.email || "").toLowerCase().includes(search.toLowerCase()) ||
-      (s.phone || "").includes(search)
+      (s.phone || "").includes(search),
   );
 
   const handleOpenAdd = () => {
@@ -178,8 +178,12 @@ function DashboardSuppliersPage() {
                       <td className="db-td font-bold text-ink">{s.name}</td>
                       <td className="db-td text-muted-foreground font-medium">{s.phone || "—"}</td>
                       <td className="db-td text-muted-foreground font-medium">{s.email || "—"}</td>
-                      <td className="db-td text-muted-foreground truncate max-w-xs">{s.address || "—"}</td>
-                      <td className="db-td text-muted-foreground italic max-w-xs truncate">{s.notes || "—"}</td>
+                      <td className="db-td text-muted-foreground truncate max-w-xs">
+                        {s.address || "—"}
+                      </td>
+                      <td className="db-td text-muted-foreground italic max-w-xs truncate">
+                        {s.notes || "—"}
+                      </td>
                       <td className="db-td text-right space-x-1">
                         <button
                           onClick={() => handleOpenEdit(s)}
@@ -221,7 +225,9 @@ function DashboardSuppliersPage() {
             </div>
             <form onSubmit={handleSave} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Company / Name *</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Company / Name *
+                </label>
                 <input
                   type="text"
                   required

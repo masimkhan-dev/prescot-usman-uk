@@ -7,9 +7,7 @@ export function AnnouncementTicker() {
   const shouldReduceMotion = useReducedMotion();
   const [isPaused, setIsPaused] = useState(false);
 
-  const whatsappUrl = BUSINESS.whatsappMessage(
-    "Hi, I need urgent help with a device repair.",
-  );
+  const whatsappUrl = BUSINESS.whatsappMessage("Hi, I need urgent help with a device repair.");
 
   const tickerItem = (
     <div className="flex items-center gap-3 whitespace-nowrap px-4">
@@ -45,7 +43,8 @@ export function AnnouncementTicker() {
         <div className="container-page flex w-full items-center justify-center text-center truncate !px-2">
           <div className="flex items-center gap-2 truncate">
             <span className="truncate text-[#F4EFEA]">
-              Device broken? Get urgent repair support for mobiles, laptops, tablets &amp; gaming consoles
+              Device broken? Get urgent repair support for mobiles, laptops, tablets &amp; gaming
+              consoles
             </span>
             <span className="hidden sm:inline text-[#888179]">•</span>
             <a

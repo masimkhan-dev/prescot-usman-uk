@@ -9,13 +9,7 @@ interface EmptyStateProps {
   icon?: ReactNode;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-  icon,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <div className="py-12 px-4 text-center flex flex-col items-center justify-center">
       <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/50">
@@ -23,9 +17,7 @@ export function EmptyState({
       </div>
       <h3 className="text-sm font-bold text-foreground">{title}</h3>
       {description && (
-        <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
-          {description}
-        </p>
+        <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">{description}</p>
       )}
       {actionLabel && onAction && (
         <button

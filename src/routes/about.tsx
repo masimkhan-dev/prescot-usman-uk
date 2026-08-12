@@ -7,9 +7,16 @@ export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
       { title: "About Prescot Mobiles & Computer Services | Local Repair Experts" },
-      { name: "description", content: "A trusted, family-run mobile and computer repair shop on Eccleston Street, Prescot. Honest advice, quality parts and a warm welcome." },
+      {
+        name: "description",
+        content:
+          "A trusted, family-run mobile and computer repair shop on Eccleston Street, Prescot. Honest advice, quality parts and a warm welcome.",
+      },
       { property: "og:title", content: "About Prescot Mobiles" },
-      { property: "og:description", content: "Trusted local mobile & computer repair specialists in Prescot, Merseyside." },
+      {
+        property: "og:description",
+        content: "Trusted local mobile & computer repair specialists in Prescot, Merseyside.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/about" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -20,10 +27,26 @@ export const Route = createFileRoute("/about")({
 });
 
 const values = [
-  { icon: Wrench, title: "Skilled technicians", desc: "Years of hands-on repair experience across every major brand." },
-  { icon: Award, title: "Quality parts", desc: "We use tested, reliable components — with a warranty for peace of mind." },
-  { icon: Heart, title: "Honest service", desc: "We only recommend repairs that make sense. No surprises, no upsell." },
-  { icon: Users, title: "Local & friendly", desc: "Real people, real conversations — right on Eccleston Street." },
+  {
+    icon: Wrench,
+    title: "Skilled technicians",
+    desc: "Years of hands-on repair experience across every major brand.",
+  },
+  {
+    icon: Award,
+    title: "Quality parts",
+    desc: "We use tested, reliable components — with a warranty for peace of mind.",
+  },
+  {
+    icon: Heart,
+    title: "Honest service",
+    desc: "We only recommend repairs that make sense. No surprises, no upsell.",
+  },
+  {
+    icon: Users,
+    title: "Local & friendly",
+    desc: "Real people, real conversations — right on Eccleston Street.",
+  },
 ];
 
 function AboutPage() {
@@ -37,14 +60,21 @@ function AboutPage() {
               Your friendly high-street tech shop in Prescot.
             </h1>
             <p className="mt-4 text-muted-foreground max-w-xl">
-              Prescot Mobiles & Computer Services is a local independent shop repairing mobiles, laptops, computers and games consoles — and selling new, used and refurbished devices at fair prices.
+              Prescot Mobiles & Computer Services is a local independent shop repairing mobiles,
+              laptops, computers and games consoles — and selling new, used and refurbished devices
+              at fair prices.
             </p>
             <p className="mt-4 text-muted-foreground max-w-xl">
-              We built this shop around a simple idea: give people honest advice, quick fixes and a proper local alternative to big-brand stores.
+              We built this shop around a simple idea: give people honest advice, quick fixes and a
+              proper local alternative to big-brand stores.
             </p>
           </div>
           <div className="rounded-3xl bg-white border border-border p-8 shadow-lg">
-            <img src={SITE_MEDIA.logo} alt="Prescot Mobiles logo" className="w-full max-w-sm mx-auto" />
+            <img
+              src={SITE_MEDIA.logo}
+              alt="Prescot Mobiles logo"
+              className="w-full max-w-sm mx-auto"
+            />
           </div>
         </div>
       </section>
@@ -53,7 +83,9 @@ function AboutPage() {
         <div className="container-page">
           <div className="max-w-2xl">
             <span className="eyebrow">What we stand for</span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-bold text-ink">Values that guide every repair.</h2>
+            <h2 className="mt-3 text-3xl md:text-4xl font-bold text-ink">
+              Values that guide every repair.
+            </h2>
           </div>
           <div className="mt-10 grid md:grid-cols-2 lg:grid-cols-4 gap-5">
             {values.map((v) => (
@@ -75,7 +107,8 @@ function AboutPage() {
             <Accessibility className="w-10 h-10 text-brand" />
             <h2 className="mt-4 text-2xl font-bold">Wheelchair accessible</h2>
             <p className="mt-3 text-white/70">
-              Our shop entrance and service area are wheelchair accessible, so everyone can get the help they need.
+              Our shop entrance and service area are wheelchair accessible, so everyone can get the
+              help they need.
             </p>
           </div>
           <div className="rounded-2xl bg-background border border-border p-10">

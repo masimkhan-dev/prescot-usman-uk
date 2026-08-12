@@ -2,7 +2,7 @@
 
 Bilkul. Main isko proposal-style scattered requirements ke bajaye ek clean, premium, client-ready website scope mein arrange kar raha hoon. Is version mein business ki buy/sell model, repair services, Walk-In + Door-to-Door + Mail-In, wheelchair accessibility, WhatsApp lead generation, SEO, aur Phase 2 dashboard sab properly integrated hain.
 
-PHASE 1 — WEBSITE SCOPE & FUNCTIONAL SPECIFICATION use the logo and start develope the website for uk base client and this wiull be used by uk  customers
+PHASE 1 — WEBSITE SCOPE & FUNCTIONAL SPECIFICATION use the logo and start develope the website for uk base client and this wiull be used by uk customers
 
 Prescot Mobiles & Computer Services
 

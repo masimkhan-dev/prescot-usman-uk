@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { saveCustomer } from "@/lib/customers.functions";
-import { Loader2, Plus, X, User, Phone, Mail, MapPin, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  X,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 interface QuickAddCustomerModalProps {
   isOpen: boolean;
@@ -151,7 +162,11 @@ export function QuickAddCustomerModal({
             onClick={() => setShowMore(!showMore)}
             className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer pt-1"
           >
-            {showMore ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showMore ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
             {showMore ? "Fewer details" : "More details..."}
           </button>
 

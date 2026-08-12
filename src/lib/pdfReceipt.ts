@@ -11,7 +11,7 @@ export async function generateReceiptPDF(
     phone: string;
     email: string;
     footer?: string;
-  }
+  },
 ): Promise<{ blob: Blob; file: File; fileName: string }> {
   const fileName = `Prescot-Receipt-${invoice.number.replace(/[^a-zA-Z0-9-]/g, "")}.pdf`;
 
@@ -52,7 +52,7 @@ export async function generateReceiptPDF(
           <span style="font-weight: 700; color: #000000;">${formatGBP(l.total)}</span>
         </div>
       </div>
-    `
+    `,
     )
     .join("");
 

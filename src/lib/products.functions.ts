@@ -116,8 +116,16 @@ export const saveProduct = createServerFn({ method: "POST" })
     };
 
     const handleSupabaseError = (error: { code?: string; message?: string; details?: string }) => {
-      if (error.code === "23505" || error.message?.includes("duplicate key") || error.message?.includes("idx_products")) {
-        if (error.message?.includes("barcode") || error.details?.includes("barcode") || error.message?.includes("idx_products_barcode")) {
+      if (
+        error.code === "23505" ||
+        error.message?.includes("duplicate key") ||
+        error.message?.includes("idx_products")
+      ) {
+        if (
+          error.message?.includes("barcode") ||
+          error.details?.includes("barcode") ||
+          error.message?.includes("idx_products_barcode")
+        ) {
           return new Error(`Barcode "${payload.barcode}" is already assigned to another product.`);
         }
         if (
@@ -272,7 +280,12 @@ const bulkItemSchema = z.object({
 
 export const importOpeningStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: any) => z.array(bulkItemSchema).min(1).parse(input?.data ?? input))
+  .inputValidator((input: any) =>
+    z
+      .array(bulkItemSchema)
+      .min(1)
+      .parse(input?.data ?? input),
+  )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("bulk_import_opening_stock", {
       p_products: data,
@@ -318,4 +331,3 @@ export const getOpeningStockSummary = createServerFn({ method: "GET" })
       potentialProfitPence: openingRetailValuePence - openingCostValuePence,
     };
   });
-

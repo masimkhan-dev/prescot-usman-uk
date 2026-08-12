@@ -509,7 +509,9 @@ function HomePage() {
                 to="/products"
                 className={`group overflow-hidden rounded-2xl border border-[#E7DED5] bg-[#FAF7F2] p-6 transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "sm:col-span-2" : ""}`}
               >
-                <div className={`overflow-hidden rounded-xl bg-white ${index === 0 ? "h-64 sm:h-72" : "h-48"}`}>
+                <div
+                  className={`overflow-hidden rounded-xl bg-white ${index === 0 ? "h-64 sm:h-72" : "h-48"}`}
+                >
                   <img
                     src={item.image}
                     alt=""
@@ -699,7 +701,9 @@ function HomePage() {
             </div>
             <div className="flex flex-col justify-center lg:col-span-6">
               <p className="eyebrow">Visit & contact</p>
-              <h2 className="mt-4 text-4xl leading-tight md:text-5xl lg:text-6xl">Visit Our Store</h2>
+              <h2 className="mt-4 text-4xl leading-tight md:text-5xl lg:text-6xl">
+                Visit Our Store
+              </h2>
               <address className="mt-5 text-base not-italic leading-7 text-[#57504A]">
                 {BUSINESS.fullAddress}
               </address>

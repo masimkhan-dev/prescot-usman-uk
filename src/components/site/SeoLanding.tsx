@@ -1,8 +1,21 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, MapPin, MessageCircle, Phone, ArrowRight, type LucideIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  MapPin,
+  MessageCircle,
+  Phone,
+  ArrowRight,
+  type LucideIcon,
+} from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
 import { BUSINESS } from "@/lib/business";
-import { WhyChooseUs, BrandsWeRepair, RepairProcess, WarrantyBanner, FAQSection } from "@/components/site/Sections";
+import {
+  WhyChooseUs,
+  BrandsWeRepair,
+  RepairProcess,
+  WarrantyBanner,
+  FAQSection,
+} from "@/components/site/Sections";
 
 export interface SeoLandingProps {
   Icon: LucideIcon;
@@ -14,7 +27,15 @@ export interface SeoLandingProps {
   showBrands?: boolean;
 }
 
-export function SeoLanding({ Icon, eyebrow, h1, intro, services, whatsappMessage, showBrands = true }: SeoLandingProps) {
+export function SeoLanding({
+  Icon,
+  eyebrow,
+  h1,
+  intro,
+  services,
+  whatsappMessage,
+  showBrands = true,
+}: SeoLandingProps) {
   return (
     <SiteLayout>
       <section className="bg-surface border-b border-border">
@@ -29,7 +50,9 @@ export function SeoLanding({ Icon, eyebrow, h1, intro, services, whatsappMessage
               </a>
               <a
                 href={BUSINESS.whatsappMessage(whatsappMessage)}
-                target="_blank" rel="noreferrer" className="btn-whatsapp"
+                target="_blank"
+                rel="noreferrer"
+                className="btn-whatsapp"
               >
                 <MessageCircle className="w-4 h-4" /> WhatsApp Us
               </a>
@@ -51,11 +74,16 @@ export function SeoLanding({ Icon, eyebrow, h1, intro, services, whatsappMessage
         <div className="container-page">
           <div className="max-w-2xl">
             <span className="eyebrow">What we fix</span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-bold text-ink">Common repairs & services</h2>
+            <h2 className="mt-3 text-3xl md:text-4xl font-bold text-ink">
+              Common repairs & services
+            </h2>
           </div>
           <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {services.map((s) => (
-              <div key={s} className="flex items-start gap-3 rounded-xl bg-background border border-border p-4">
+              <div
+                key={s}
+                className="flex items-start gap-3 rounded-xl bg-background border border-border p-4"
+              >
                 <CheckCircle2 className="w-5 h-5 text-brand mt-0.5 shrink-0" />
                 <span className="text-sm font-medium text-ink">{s}</span>
               </div>

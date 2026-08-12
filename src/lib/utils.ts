@@ -12,4 +12,3 @@ export function formatGBP(value: number | string) {
     currency: "GBP",
   }).format(num || 0);
 }
-

@@ -24,39 +24,54 @@ import {
   PackagePlus,
   X,
   Search,
-  AlertTriangle,
   FileSpreadsheet,
   Tag,
+  Package,
 } from "lucide-react";
 
 // Lazy load heavy components
 const OpeningStockSummary = lazy(() =>
   import("@/components/dashboard/OpeningStockSummary").then((m) => ({
     default: m.OpeningStockSummary,
-  }))
+  })),
 );
 const CSVImportModal = lazy(() =>
   import("@/components/dashboard/CSVImportModal").then((m) => ({
     default: m.CSVImportModal,
-  }))
+  })),
 );
 const ProductLabelModal = lazy(() =>
   import("@/components/dashboard/ProductLabelModal").then((m) => ({
     default: m.ProductLabelModal,
-  }))
+  })),
 );
 
 export const Route = createFileRoute("/_authenticated/dashboard/products")({
   component: ProductsPage,
 });
 
+const STANDARD_CATEGORIES = [
+  "Accessories",
+  "Screens",
+  "Batteries",
+  "Charging Parts",
+  "Cables & Chargers",
+  "Cases & Covers",
+  "Audio",
+  "Cameras",
+  "Mobile Phones",
+  "Laptop Parts",
+  "Gaming",
+  "Other",
+];
+
 const emptyProduct = {
   id: "",
   name: "",
-  category: "Accessories",
+  category: "Screens",
   sku: "",
   barcode: "",
-  type: "product" as "product" | "part" | "service",
+  type: "part" as "product" | "part",
   cost_price_pounds: "",
   sale_price_pounds: "",
   stock_quantity: 0,
@@ -77,9 +92,13 @@ function ProductsPage() {
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ ...emptyProduct });
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<"all" | "product" | "part">("all");
+  const [filterTab, setFilterTab] = useState<
+    "all" | "product" | "part" | "low_stock" | "out_of_stock"
+  >("all");
   const [adjustFor, setAdjustFor] = useState<{ id: string; name: string } | null>(null);
   const [adjDelta, setAdjDelta] = useState(0);
   const [adjReason, setAdjReason] = useState("adjustment");
@@ -96,7 +115,11 @@ function ProductsPage() {
     barcode?: string | null;
   } | null>(null);
 
-  const { data, isLoading, error: queryError } = useQuery({
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
     queryKey: ["products", debouncedSearch, page],
     queryFn: async () => {
       try {
@@ -107,7 +130,7 @@ function ProductsPage() {
         throw err;
       }
     },
-    staleTime: 1000 * 30, // 30s caching
+    staleTime: 1000 * 30,
   });
 
   const { data: movementsData } = useQuery({
@@ -123,7 +146,9 @@ function ProductsPage() {
       toastError("Item Name is required");
       return;
     }
-    if (!form.category.trim()) {
+
+    const finalCategory = isCustomCategory ? customCategoryInput.trim() : form.category.trim();
+    if (!finalCategory) {
       toastError("Category is required");
       return;
     }
@@ -136,7 +161,7 @@ function ProductsPage() {
       return;
     }
     if (isNaN(saleVal) || saleVal < 0) {
-      toastError("Retail Sale Price must be a valid non-negative number (£)");
+      toastError("Default Selling Price must be a valid non-negative number (£)");
       return;
     }
 
@@ -147,7 +172,7 @@ function ProductsPage() {
     const payload = {
       id: form.id ? form.id : undefined,
       name: form.name.trim(),
-      category: form.category.trim(),
+      category: finalCategory,
       sku: form.sku?.trim() || null,
       barcode: form.barcode?.trim() || null,
       type: form.type,
@@ -161,29 +186,31 @@ function ProductsPage() {
 
     try {
       await saveFn({ data: payload });
-      toastSuccess(editing ? "Product updated successfully!" : "Product saved successfully!");
+      toastSuccess(editing ? "Item updated successfully!" : "Product / part saved successfully!");
       setForm({ ...emptyProduct });
+      setIsCustomCategory(false);
+      setCustomCategoryInput("");
       setEditing(false);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["active-products"] });
       await queryClient.invalidateQueries({ queryKey: ["opening-stock-summary"] });
     } catch (err: unknown) {
       console.error("Save product error:", err);
-      toastError(err, "Failed to save product");
+      toastError(err, "Failed to save item");
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleDeactivate(id: string) {
-    if (!confirm("Deactivate this inventory product? (It will be hidden from POS register)"))
+    if (!confirm("Deactivate this inventory item? (It will be hidden from POS & Repair forms)"))
       return;
     try {
       await deactivateFn({ data: { id } });
-      toastSuccess("Product deactivated");
+      toastSuccess("Item deactivated");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     } catch (err: unknown) {
-      toastError(err, "Failed to deactivate product");
+      toastError(err, "Failed to deactivate item");
     }
   }
 
@@ -200,9 +227,7 @@ function ProductsPage() {
           note: adjNote || null,
         },
       });
-      toastSuccess(
-        `Stock adjusted! Ref #${res.adj_number} (${res.qty_before} → ${res.qty_after})`
-      );
+      toastSuccess(`Stock adjusted! Ref #${res.adj_number} (${res.qty_before} → ${res.qty_after})`);
       setAdjustFor(null);
       setAdjDelta(0);
       setAdjNote("");
@@ -219,40 +244,48 @@ function ProductsPage() {
 
   const filtered = useMemo(() => {
     return (data?.rows ?? []).filter((p) => {
-      const matchesType = typeFilter === "all" || p.type === typeFilter;
-      return matchesType;
+      if (filterTab === "product") return p.type === "product";
+      if (filterTab === "part") return p.type === "part";
+      if (filterTab === "low_stock")
+        return p.stock_quantity <= (p.low_stock_threshold ?? 5) && p.stock_quantity > 0;
+      if (filterTab === "out_of_stock") return p.stock_quantity === 0;
+      return true;
     });
-  }, [data?.rows, typeFilter]);
+  }, [data?.rows, filterTab]);
 
   return (
     <div className="space-y-6">
+      {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-[#0F172A]">Products & Parts Inventory</h1>
+            <Package className="w-5 h-5 text-[#E11D48]" />
+            <h1 className="text-2xl font-extrabold text-[#0F172A]">Inventory & Repair Parts</h1>
             <PageHelpButton
-              pageTitle="Inventory"
+              pageTitle="Inventory & Repair Parts"
               pageKey="inventory"
               steps={[
-                "Add products or repair parts using the form below.",
-                "Use Opening Stock for stock already in the shop.",
-                "New stock should normally come through purchases/receiving.",
-                "Use Stock Adjustment only for manual corrections.",
+                "Add retail products or repair replacement parts using the form below.",
+                "Use Import Existing Stock for items already physically in the shop.",
+                "Default Selling Price & Warranty act as suggested defaults — they can be customized per invoice.",
+                "Future stock arrivals should be logged through Purchases.",
               ]}
-              firstTimeTip="Tip: Add existing stock using Opening Stock, or receive new stock via Purchase Orders."
+              firstTimeTip="Tip: Manage retail items & repair components here. Default prices & warranties serve as suggested baselines during sales & repairs."
             />
           </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage store products, repair replacement parts, barcodes, stock levels & warranty terms.
+            Manage retail products and repair parts, stock levels, pricing, barcodes and default
+            warranty information.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setImportModalOpen(true)}
-          className="btn-primary !py-2.5 !px-4 !text-xs inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+          title="Use this when setting up stock that is already physically in the shop."
+          className="btn-primary !py-2.5 !px-4 !text-xs inline-flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
         >
-          <FileSpreadsheet className="w-4 h-4" /> Import Opening Stock
+          <FileSpreadsheet className="w-4 h-4" /> Import Existing Stock
         </button>
       </div>
 
@@ -261,90 +294,142 @@ function ProductsPage() {
         <OpeningStockSummary />
       </Suspense>
 
-      {/* Add / Edit Product Form */}
+      {/* ── Add / Edit Product & Part Form ── */}
       <form
         onSubmit={handleSubmit}
         className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3"
       >
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-          {editing ? "Edit Inventory Item" : "Add New Inventory Item"}
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+          <span>{editing ? "EDIT PRODUCT / PART" : "ADD PRODUCT / PART"}</span>
+          {editing && (
+            <button
+              type="button"
+              onClick={() => {
+                setForm({ ...emptyProduct });
+                setIsCustomCategory(false);
+                setEditing(false);
+              }}
+              className="text-[11px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
+            >
+              Cancel Edit
+            </button>
+          )}
         </div>
+
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Item Name */}
           <div className="sm:col-span-2">
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
               Item Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              placeholder="e.g. iPhone 14 Screen Replacement"
+              placeholder="e.g. iPhone 14 Premium OLED Screen"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
             />
           </div>
 
+          {/* Item Type */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              Item Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as "product" | "part" })}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white cursor-pointer"
+            >
+              <option value="part">Repair Part</option>
+              <option value="product">Retail Product</option>
+            </select>
+          </div>
+
+          {/* Category */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
               Category <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Screens / Accessories"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
-            />
+            {!isCustomCategory ? (
+              <select
+                value={form.category}
+                onChange={(e) => {
+                  if (e.target.value === "__custom__") {
+                    setIsCustomCategory(true);
+                    setCustomCategoryInput("");
+                  } else {
+                    setForm({ ...form, category: e.target.value });
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white cursor-pointer"
+              >
+                {STANDARD_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+                {!STANDARD_CATEGORIES.includes(form.category) && form.category && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+                <option value="__custom__">+ Add Custom Category...</option>
+              </select>
+            ) : (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  placeholder="Enter category..."
+                  value={customCategoryInput}
+                  onChange={(e) => setCustomCategoryInput(e.target.value)}
+                  autoFocus
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomCategory(false);
+                    setForm({ ...form, category: STANDARD_CATEGORIES[0] });
+                  }}
+                  className="p-2 text-slate-400 hover:text-slate-600 cursor-pointer shrink-0 text-xs font-bold"
+                  title="Choose from list"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* SKU */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Inventory Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={form.type}
-              onChange={(e) =>
-                setForm({ ...form, type: e.target.value as "product" | "part" | "service" })
-              }
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none bg-white"
-            >
-              <option value="product">Retail Product (For Sale)</option>
-              <option value="part">Repair Component Part</option>
-              <option value="service">Service / Labour Item</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Internal SKU Code
-            </label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">SKU</label>
             <input
               type="text"
-              placeholder={editing ? "e.g. ACC-000001" : "[ Auto-generated when saved ]"}
+              placeholder={editing ? "e.g. ACC-000001" : "[ Auto-generated ]"}
               value={form.sku}
               onChange={(e) => setForm({ ...form, sku: e.target.value })}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
             />
             <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
-              {editing ? "Unique internal product SKU." : "Leave blank to auto-generate SKU."}
+              Internal stock code. Leave blank to generate automatically.
             </span>
           </div>
 
+          {/* Barcode */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Manufacturer Barcode (Optional)
-            </label>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Barcode</label>
             <input
               type="text"
-              placeholder="e.g. 5012345678901"
+              placeholder="Scan or enter barcode"
               value={form.barcode}
               onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold focus:border-[#E11D48] outline-none"
             />
             <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
-              Scan or enter barcode printed on product. Leave blank if no barcode.
+              Optional — use the manufacturer's barcode if available.
             </span>
           </div>
 
+          {/* Cost Price */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
               Cost Price (£) <span className="text-red-500">*</span>
@@ -359,9 +444,11 @@ function ProductsPage() {
             />
           </div>
 
+          {/* Default Selling Price */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Retail Sale Price (£) <span className="text-red-500">*</span>
+              Default Selling Price (£) <span className="text-red-500">*</span>
+              <ContextTip text="Suggested selling price. Can be changed when creating a sale or repair invoice." />
             </label>
             <input
               type="number"
@@ -373,10 +460,11 @@ function ProductsPage() {
             />
           </div>
 
+          {/* Initial Stock on Hand */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              {editing ? "Current Stock Qty" : "Opening Stock Quantity"}{" "}
-              <ContextTip text="Stock already present inside shop before using system." />
+              {editing ? "Current Stock Qty" : "Initial Stock on Hand"}{" "}
+              <ContextTip text="Quantity already physically in the shop when adding this item. Future stock should normally be received through Purchases." />
               <span className="text-red-500">*</span>
             </label>
             <input
@@ -388,9 +476,10 @@ function ProductsPage() {
             />
           </div>
 
+          {/* Low Stock Alert */}
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Low Stock Warning Limit
+              Low Stock Alert
             </label>
             <input
               type="number"
@@ -401,10 +490,11 @@ function ProductsPage() {
             />
           </div>
 
+          {/* Default Warranty (Days) */}
           <div className="sm:col-span-2">
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Warranty (Days)
-              <ContextTip text="Enter warranty offered for this specific item. Leave 0 if no warranty." />
+              Default Warranty (Days)
+              <ContextTip text="Suggested warranty for this item. It can be changed when creating a repair invoice." />
             </label>
             <input
               type="number"
@@ -422,6 +512,7 @@ function ProductsPage() {
               type="button"
               onClick={() => {
                 setForm({ ...emptyProduct });
+                setIsCustomCategory(false);
                 setEditing(false);
               }}
               className="btn-outline !py-2 !px-4 !text-xs cursor-pointer"
@@ -432,25 +523,25 @@ function ProductsPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            className="btn-primary !py-2 !px-5 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer font-extrabold"
           >
             {submitting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Plus className="w-3.5 h-3.5" />
             )}
-            {editing ? "Update Product Item" : "Save New Product"}
+            {editing ? "UPDATE ITEM" : "SAVE ITEM"}
           </button>
         </div>
       </form>
 
-      {/* Filter and Search Bar */}
+      {/* ── Filter and Search Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search products by name, category, SKU, or barcode..."
+            placeholder="Search item, SKU, barcode or category..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -462,15 +553,17 @@ function ProductsPage() {
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: "all", label: "All Items" },
+            { id: "all", label: "All" },
             { id: "product", label: "Retail Products" },
             { id: "part", label: "Repair Parts" },
+            { id: "low_stock", label: "Low Stock" },
+            { id: "out_of_stock", label: "Out of Stock" },
           ].map((t) => (
             <button
               key={t.id}
-              onClick={() => setTypeFilter(t.id as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                typeFilter === t.id
+              onClick={() => setFilterTab(t.id as any)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                filterTab === t.id
                   ? "bg-[#E11D48] text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
@@ -481,10 +574,10 @@ function ProductsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       {isLoading ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-4">
-          <TableSkeleton rows={6} cols={8} />
+          <TableSkeleton rows={6} cols={9} />
         </div>
       ) : queryError ? (
         <div className="p-4 text-red-600 bg-red-50 rounded-xl text-xs font-bold border border-red-200">
@@ -496,11 +589,12 @@ function ProductsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Item Details</th>
+                  <th className="py-3 px-4">Item</th>
+                  <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">SKU / Barcode</th>
                   <th className="py-3 px-4 text-right">Cost</th>
-                  <th className="py-3 px-4 text-right">Retail</th>
+                  <th className="py-3 px-4 text-right">Default Price</th>
                   <th className="py-3 px-4 text-center">Stock</th>
                   <th className="py-3 px-4 text-center">Warranty</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -509,10 +603,10 @@ function ProductsPage() {
               <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <EmptyState
-                        title="No products found"
-                        description="Try adjusting your search query or inventory type filter."
+                        title="No items found"
+                        description="Try adjusting your search query or filter tab."
                         actionLabel="Clear Search"
                         onAction={() => setSearchQuery("")}
                       />
@@ -520,12 +614,26 @@ function ProductsPage() {
                   </tr>
                 ) : (
                   filtered.map((p) => {
-                    const isLow = p.stock_quantity <= (p.low_stock_threshold ?? 5);
+                    const threshold = p.low_stock_threshold ?? 5;
+                    const isOutOfStock = p.stock_quantity === 0;
+                    const isLowStock = !isOutOfStock && p.stock_quantity <= threshold;
+                    const typeLabel = p.type === "product" ? "Retail Product" : "Repair Part";
+
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3 px-4">
                           <div className="font-bold text-slate-900">{p.name}</div>
-                          <div className="text-[10px] text-slate-400 capitalize">{p.type}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                              p.type === "product"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-purple-50 text-purple-700 border border-purple-200"
+                            }`}
+                          >
+                            {typeLabel}
+                          </span>
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-600">{p.category}</td>
                         <td className="py-3 px-4 font-mono text-[11px]">
@@ -541,18 +649,22 @@ function ProductsPage() {
                           {formatGBP(p.sale_price_pence / 100)}
                         </td>
                         <td className="py-3 px-4 text-center">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
-                              isLow
-                                ? "bg-red-50 text-red-700 border border-red-200"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            }`}
-                          >
-                            {p.stock_quantity}
-                          </span>
+                          {isOutOfStock ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-50 text-red-700 border border-red-200 font-mono">
+                              0 Out of Stock
+                            </span>
+                          ) : isLowStock ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 font-mono">
+                              {p.stock_quantity} Low Stock
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                              {p.stock_quantity} In Stock
+                            </span>
+                          )}
                         </td>
-                        <td className="py-3 px-4 text-center text-slate-500 font-semibold">
-                          {p.warranty_days ? `${p.warranty_days}d` : "None"}
+                        <td className="py-3 px-4 text-center text-slate-600 font-bold font-mono">
+                          {p.warranty_days ? `${p.warranty_days} Days` : "—"}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -584,13 +696,16 @@ function ProductsPage() {
                               type="button"
                               onClick={() => {
                                 setEditing(true);
+                                const isStdCat = STANDARD_CATEGORIES.includes(p.category);
+                                setIsCustomCategory(!isStdCat);
+                                if (!isStdCat) setCustomCategoryInput(p.category);
                                 setForm({
                                   id: p.id,
                                   name: p.name,
                                   category: p.category,
                                   sku: p.sku || "",
                                   barcode: p.barcode || "",
-                                  type: p.type as any,
+                                  type: (p.type === "product" ? "product" : "part") as any,
                                   cost_price_pounds: (p.cost_price_pence / 100).toString(),
                                   sale_price_pounds: (p.sale_price_pence / 100).toString(),
                                   stock_quantity: p.stock_quantity,
@@ -607,7 +722,7 @@ function ProductsPage() {
                             <button
                               type="button"
                               onClick={() => handleDeactivate(p.id)}
-                              title="Deactivate Product"
+                              title="Deactivate Item"
                               className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -696,7 +811,7 @@ function ProductsPage() {
                 <option value="adjustment">Manual Correction / Count</option>
                 <option value="damaged">Damaged / Broken Stock</option>
                 <option value="return">Customer Return</option>
-                <option value="purchase">Opening Stock Addition</option>
+                <option value="purchase">Initial Stock Addition</option>
               </select>
             </div>
 
@@ -724,7 +839,7 @@ function ProductsPage() {
               <button
                 type="submit"
                 disabled={adjusting || adjDelta === 0}
-                className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="btn-primary !py-2 !px-4 !text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer font-bold"
               >
                 {adjusting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                 Save Adjustment
@@ -766,7 +881,8 @@ function ProductsPage() {
                   >
                     <div>
                       <div className="font-extrabold text-slate-900 capitalize">
-                        {m.reason} ({m.quantity_change > 0 ? `+${m.quantity_change}` : m.quantity_change})
+                        {m.reason} (
+                        {m.quantity_change > 0 ? `+${m.quantity_change}` : m.quantity_change})
                       </div>
                       <div className="text-[10px] text-slate-400">
                         {new Date(m.created_at).toLocaleString()}
@@ -801,10 +917,7 @@ function ProductsPage() {
         )}
 
         {labelProduct && (
-          <ProductLabelModal
-            onClose={() => setLabelProduct(null)}
-            product={labelProduct}
-          />
+          <ProductLabelModal onClose={() => setLabelProduct(null)} product={labelProduct} />
         )}
       </Suspense>
     </div>

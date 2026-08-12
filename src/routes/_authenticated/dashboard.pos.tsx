@@ -26,6 +26,7 @@ import {
   History,
   Lock,
   Unlock,
+  Zap,
 } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { toast } from "sonner";
@@ -36,19 +37,21 @@ import type { InvoiceData } from "@/components/dashboard/Invoice";
 import type { ReconciliationData } from "@/components/dashboard/ShiftModals";
 
 import { InvoiceModal } from "@/components/dashboard/Invoice";
+import { RepairA4InvoiceModal } from "@/components/dashboard/RepairA4InvoiceModal";
+import { CreateRepairInvoiceModal } from "@/components/dashboard/CreateRepairInvoiceModal";
 const OpenShiftModal = lazy(() =>
-  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.OpenShiftModal }))
+  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.OpenShiftModal })),
 );
 const CloseShiftModal = lazy(() =>
-  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.CloseShiftModal }))
+  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.CloseShiftModal })),
 );
 const ShiftReconciliationResultModal = lazy(() =>
   import("@/components/dashboard/ShiftModals").then((m) => ({
     default: m.ShiftReconciliationResultModal,
-  }))
+  })),
 );
 const ShiftHistoryModal = lazy(() =>
-  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.ShiftHistoryModal }))
+  import("@/components/dashboard/ShiftModals").then((m) => ({ default: m.ShiftHistoryModal })),
 );
 
 export const Route = createFileRoute("/_authenticated/dashboard/pos")({
@@ -104,12 +107,15 @@ function POSPage() {
   const [submitting, setSubmitting] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
 
+  // Quick Repair Invoice Modal state
+  const [showCreateRepairModal, setShowCreateRepairModal] = useState(false);
+  const [quickRepairInvoice, setQuickRepairInvoice] = useState<any | null>(null);
+
   // Shift Modal states
   const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
   const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
   const [showShiftHistoryModal, setShowShiftHistoryModal] = useState(false);
-  const [reconciliationResult, setReconciliationResult] =
-    useState<ReconciliationData | null>(null);
+  const [reconciliationResult, setReconciliationResult] = useState<ReconciliationData | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -151,8 +157,7 @@ function POSPage() {
 
     return products.filter((p) => {
       const matchesCategory =
-        selectedCategory === "All" ||
-        p.category?.toLowerCase() === selectedCategory.toLowerCase();
+        selectedCategory === "All" || p.category?.toLowerCase() === selectedCategory.toLowerCase();
 
       if (!q) return matchesCategory;
 
@@ -189,10 +194,10 @@ function POSPage() {
         return prev.map((c) =>
           c.product_id === product.id
             ? {
-              ...c,
-              quantity: c.quantity + 1,
-              line_total_pence: (c.quantity + 1) * c.unit_price_pence - c.discount_pence,
-            }
+                ...c,
+                quantity: c.quantity + 1,
+                line_total_pence: (c.quantity + 1) * c.unit_price_pence - c.discount_pence,
+              }
             : c,
         );
       }
@@ -282,15 +287,11 @@ function POSPage() {
       const allProds = products || [];
 
       // 1. Exact Manufacturer Barcode match
-      let matched = allProds.find(
-        (p) => p.barcode && p.barcode.trim().toLowerCase() === normQuery,
-      );
+      let matched = allProds.find((p) => p.barcode && p.barcode.trim().toLowerCase() === normQuery);
 
       // 2. Exact Internal SKU match
       if (!matched) {
-        matched = allProds.find(
-          (p) => p.sku && p.sku.trim().toLowerCase() === normQuery,
-        );
+        matched = allProds.find((p) => p.sku && p.sku.trim().toLowerCase() === normQuery);
       }
 
       // 3. Fallback search: single candidate in filtered list
@@ -371,10 +372,10 @@ function POSPage() {
         date: new Date().toLocaleString("en-GB"),
         customer: selectedCustomer
           ? {
-            name: selectedCustomer.name,
-            phone: selectedCustomer.phone,
-            email: selectedCustomer.email,
-          }
+              name: selectedCustomer.name,
+              phone: selectedCustomer.phone,
+              email: selectedCustomer.email,
+            }
           : null,
         lines: cart.map((c) => ({
           name: c.product_name,
@@ -498,6 +499,14 @@ function POSPage() {
           >
             <History className="w-3.5 h-3.5 text-slate-500" /> History
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateRepairModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-brand hover:bg-brand/90 text-white text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" /> Quick Repair Invoice
+          </button>
         </div>
       </div>
 
@@ -549,10 +558,11 @@ function POSPage() {
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition-all text-xs min-h-[40px] cursor-pointer ${isSelected
+                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition-all text-xs min-h-[40px] cursor-pointer ${
+                      isSelected
                         ? "bg-[#0F172A] text-white shadow-sm"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
+                    }`}
                   >
                     {cat}
                   </button>
@@ -574,10 +584,11 @@ function POSPage() {
                   type="button"
                   onClick={() => addToCart(p)}
                   disabled={isOutOfStock}
-                  className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[120px] group ${isOutOfStock
+                  className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[120px] group ${
+                    isOutOfStock
                       ? "bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed"
                       : "bg-white border-slate-200 hover:border-[#E11D48] hover:shadow-md cursor-pointer active:scale-98"
-                    }`}
+                  }`}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-1">
@@ -595,16 +606,21 @@ function POSPage() {
                       {formatGBP(p.sale_price_pence / 100)}
                     </span>
                     <span
-                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${isService
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
+                        isService
                           ? "bg-blue-100 text-blue-800"
                           : isOutOfStock
                             ? "bg-rose-100 text-rose-800"
                             : isLowStock
                               ? "bg-amber-100 text-amber-800"
                               : "bg-slate-100 text-slate-600"
-                        }`}
+                      }`}
                     >
-                      {isService ? "Service" : isOutOfStock ? "Out of stock" : `Stock ${p.stock_quantity}`}
+                      {isService
+                        ? "Service"
+                        : isOutOfStock
+                          ? "Out of stock"
+                          : `Stock ${p.stock_quantity}`}
                     </span>
                   </div>
                 </button>
@@ -625,7 +641,6 @@ function POSPage() {
 
         {/* Right Column: Sticky Cart & Checkout Panel */}
         <div className="lg:col-span-5 2xl:col-span-4 space-y-4 lg:sticky lg:top-4 min-w-0">
-
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
             {/* Cart Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -724,7 +739,11 @@ function POSPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={item.unit_price_pence === 0 ? "" : (item.unit_price_pence / 100).toString()}
+                        value={
+                          item.unit_price_pence === 0
+                            ? ""
+                            : (item.unit_price_pence / 100).toString()
+                        }
                         onChange={(e) => {
                           const val = parseFloat(e.target.value);
                           updateUnitPrice(item.product_id, isNaN(val) ? 0 : val);
@@ -841,30 +860,33 @@ function POSPage() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("cash")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${paymentMethod === "cash"
+                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === "cash"
                           ? "bg-[#0F172A] text-white border-[#0F172A] shadow-sm"
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
+                      }`}
                     >
                       <Banknote className="w-3.5 h-3.5 text-emerald-400" /> Cash
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("card")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${paymentMethod === "card"
+                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === "card"
                           ? "bg-[#0F172A] text-white border-[#0F172A] shadow-sm"
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
+                      }`}
                     >
                       <CreditCard className="w-3.5 h-3.5 text-sky-400" /> Card
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("bank_transfer")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${paymentMethod === "bank_transfer"
+                      className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === "bank_transfer"
                           ? "bg-[#0F172A] text-white border-[#0F172A] shadow-sm"
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
+                      }`}
                     >
                       <Building2 className="w-3.5 h-3.5 text-amber-400" /> Bank
                     </button>
@@ -935,9 +957,7 @@ function POSPage() {
                   )}
                   <div className="flex justify-between text-base font-black text-slate-950 pt-2 border-t border-slate-900">
                     <span>TOTAL</span>
-                    <span className="text-[#E11D48] font-mono">
-                      {formatGBP(totalPence / 100)}
-                    </span>
+                    <span className="text-[#E11D48] font-mono">{formatGBP(totalPence / 100)}</span>
                   </div>
                 </div>
 
@@ -1015,7 +1035,26 @@ function POSPage() {
 
         {/* Invoice / Receipt Modal */}
         {invoice && <InvoiceModal data={invoice} onClose={() => setInvoice(null)} />}
+
+        {/* Quick Repair A4 Invoice (after creation) */}
+        {quickRepairInvoice && (
+          <RepairA4InvoiceModal
+            isOpen={!!quickRepairInvoice}
+            onClose={() => setQuickRepairInvoice(null)}
+            repair={quickRepairInvoice}
+          />
+        )}
       </Suspense>
+
+      {/* Quick Repair Invoice Create Modal (outside Suspense — eagerly imported) */}
+      <CreateRepairInvoiceModal
+        isOpen={showCreateRepairModal}
+        onClose={() => setShowCreateRepairModal(false)}
+        onSuccess={(repair) => {
+          setShowCreateRepairModal(false);
+          setQuickRepairInvoice(repair);
+        }}
+      />
     </div>
   );
 }
