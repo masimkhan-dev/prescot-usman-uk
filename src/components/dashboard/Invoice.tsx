@@ -455,7 +455,7 @@ function A4SalesInvoiceBody({
             {businessName.toUpperCase()}
           </h1>
           <p className="text-xs text-slate-700 font-medium">{addressLine}</p>
-          <p className="text-xs text-slate-700 font-medium">Tel: {phone} | Mob: 07479 385163</p>
+          <p className="text-xs text-slate-700 font-medium">Tel: {phone} | Mob: +44 7491 248770</p>
           <p className="text-xs text-slate-600 font-mono">{email} | www.prescotmobiles.co.uk</p>
           {vatRegistered && vatNumber && (
             <p className="text-xs font-bold text-slate-800">VAT Reg: {vatNumber}</p>

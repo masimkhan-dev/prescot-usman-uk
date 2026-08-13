@@ -155,7 +155,7 @@ export function RepairA4InvoiceModal({
                   57 Eccleston Street, Prescot L34 5QH
                 </p>
                 <p className="text-xs text-slate-700 font-medium">
-                  Tel: 0151 426 0000 | Mob: 07479 385163
+                  Tel: +44 7491 248770
                 </p>
                 <p className="text-xs text-slate-600 font-mono">
                   info@prescotmobiles.co.uk | www.prescotmobiles.co.uk
@@ -288,6 +288,11 @@ export function RepairA4InvoiceModal({
                           </td>
                           <td className="py-1.5 px-2.5 text-center font-bold text-slate-900">
                             {formatWarrantyText(item.warranty_days)}
+                            {item.warranty_policy_text && (
+                              <p className="text-[9px] font-normal text-slate-500 italic mt-0.5 leading-tight">
+                                {item.warranty_policy_text}
+                              </p>
+                            )}
                           </td>
                           <td className="py-1.5 px-2.5 text-right font-bold font-mono">
                             £
@@ -308,6 +313,11 @@ export function RepairA4InvoiceModal({
                         </td>
                         <td className="py-1.5 px-2.5 text-center font-bold text-slate-900">
                           {formatWarrantyText(repair.warranty_days)}
+                          {repair.warranty_policy_text && (
+                            <p className="text-[9px] font-normal text-slate-500 italic mt-0.5 leading-tight">
+                              {repair.warranty_policy_text}
+                            </p>
+                          )}
                         </td>
                         <td className="py-1.5 px-2.5 text-right font-bold font-mono">
                           £{(quotePence / 100).toFixed(2)}

@@ -376,7 +376,9 @@ function POSPage() {
               phone: selectedCustomer.phone,
               email: selectedCustomer.email,
             }
-          : null,
+          : customerSearch.trim()
+            ? { name: customerSearch.trim(), phone: null, email: null }
+            : null,
         lines: cart.map((c) => ({
           name: c.product_name,
           quantity: c.quantity,
