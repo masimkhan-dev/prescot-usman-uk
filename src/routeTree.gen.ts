@@ -34,6 +34,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardCustomersRouteImport } from './routes/_authenticated/dashboard.customers'
 import { Route as AuthenticatedDashboardExpensesRouteImport } from './routes/_authenticated/dashboard.expenses'
+import { Route as AuthenticatedDashboardPhoneBuySellRouteImport } from './routes/_authenticated/dashboard.phone-buy-sell'
 import { Route as AuthenticatedDashboardPosRouteImport } from './routes/_authenticated/dashboard.pos'
 import { Route as AuthenticatedDashboardProductsRouteImport } from './routes/_authenticated/dashboard.products'
 import { Route as AuthenticatedDashboardPurchasesRouteImport } from './routes/_authenticated/dashboard.purchases'
@@ -175,6 +176,12 @@ const AuthenticatedDashboardExpensesRoute =
     path: '/expenses',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedDashboardPhoneBuySellRoute =
+  AuthenticatedDashboardPhoneBuySellRouteImport.update({
+    id: '/phone-buy-sell',
+    path: '/phone-buy-sell',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const AuthenticatedDashboardPosRoute =
   AuthenticatedDashboardPosRouteImport.update({
     id: '/pos',
@@ -254,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
   '/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
+  '/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/dashboard/pos': typeof AuthenticatedDashboardPosRoute
   '/dashboard/products': typeof AuthenticatedDashboardProductsRoute
   '/dashboard/purchases': typeof AuthenticatedDashboardPurchasesRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/warranty': typeof WarrantyRoute
   '/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
   '/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
+  '/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/dashboard/pos': typeof AuthenticatedDashboardPosRoute
   '/dashboard/products': typeof AuthenticatedDashboardProductsRoute
   '/dashboard/purchases': typeof AuthenticatedDashboardPurchasesRoute
@@ -325,6 +334,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
   '/_authenticated/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
+  '/_authenticated/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/_authenticated/dashboard/pos': typeof AuthenticatedDashboardPosRoute
   '/_authenticated/dashboard/products': typeof AuthenticatedDashboardProductsRoute
   '/_authenticated/dashboard/purchases': typeof AuthenticatedDashboardPurchasesRoute
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/customers'
     | '/dashboard/expenses'
+    | '/dashboard/phone-buy-sell'
     | '/dashboard/pos'
     | '/dashboard/products'
     | '/dashboard/purchases'
@@ -396,6 +407,7 @@ export interface FileRouteTypes {
     | '/warranty'
     | '/dashboard/customers'
     | '/dashboard/expenses'
+    | '/dashboard/phone-buy-sell'
     | '/dashboard/pos'
     | '/dashboard/products'
     | '/dashboard/purchases'
@@ -432,6 +444,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/dashboard/customers'
     | '/_authenticated/dashboard/expenses'
+    | '/_authenticated/dashboard/phone-buy-sell'
     | '/_authenticated/dashboard/pos'
     | '/_authenticated/dashboard/products'
     | '/_authenticated/dashboard/purchases'
@@ -645,6 +658,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardExpensesRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/dashboard/phone-buy-sell': {
+      id: '/_authenticated/dashboard/phone-buy-sell'
+      path: '/phone-buy-sell'
+      fullPath: '/dashboard/phone-buy-sell'
+      preLoaderRoute: typeof AuthenticatedDashboardPhoneBuySellRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/_authenticated/dashboard/pos': {
       id: '/_authenticated/dashboard/pos'
       path: '/pos'
@@ -714,6 +734,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardCustomersRoute: typeof AuthenticatedDashboardCustomersRoute
   AuthenticatedDashboardExpensesRoute: typeof AuthenticatedDashboardExpensesRoute
+  AuthenticatedDashboardPhoneBuySellRoute: typeof AuthenticatedDashboardPhoneBuySellRoute
   AuthenticatedDashboardPosRoute: typeof AuthenticatedDashboardPosRoute
   AuthenticatedDashboardProductsRoute: typeof AuthenticatedDashboardProductsRoute
   AuthenticatedDashboardPurchasesRoute: typeof AuthenticatedDashboardPurchasesRoute
@@ -730,6 +751,8 @@ const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
     AuthenticatedDashboardCustomersRoute: AuthenticatedDashboardCustomersRoute,
     AuthenticatedDashboardExpensesRoute: AuthenticatedDashboardExpensesRoute,
+    AuthenticatedDashboardPhoneBuySellRoute:
+      AuthenticatedDashboardPhoneBuySellRoute,
     AuthenticatedDashboardPosRoute: AuthenticatedDashboardPosRoute,
     AuthenticatedDashboardProductsRoute: AuthenticatedDashboardProductsRoute,
     AuthenticatedDashboardPurchasesRoute: AuthenticatedDashboardPurchasesRoute,

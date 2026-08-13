@@ -6,7 +6,7 @@ import { getReports } from "@/lib/reports.functions";
 import { formatGBP } from "@/lib/utils";
 import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
 import { CardSkeleton } from "@/components/dashboard/TableSkeleton";
-import { AlertCircle, Calendar, BarChart3, RotateCcw } from "lucide-react";
+import { AlertCircle, Calendar, BarChart3, RotateCcw, Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/reports")({
   component: ReportsPage,
@@ -308,6 +308,37 @@ function ReportsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Phone Buy & Sell KPI Panel — informational breakdown only */}
+      {data.phoneSummary && (
+        <div className="db-card space-y-3">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-brand" />
+            <h2 className="db-card-title">Phone Buy & Sell — Stock Overview</h2>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Informational breakdown only. Phone revenue and COGS are already included in the overall Sales Revenue and P&amp;L figures above — they are not added again here.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "In Stock", value: String(data.phoneSummary.units_in_stock ?? 0) + " units" },
+              { label: "Sold", value: String(data.phoneSummary.units_sold ?? 0) + " units" },
+              { label: "Stock Cost Value", value: formatGBP((data.phoneSummary.stock_cost_value_pence ?? 0) / 100) },
+              { label: "Phone Revenue (sold)", value: formatGBP((data.phoneSummary.sold_revenue_pence ?? 0) / 100) },
+              { label: "Phone COGS (sold)", value: formatGBP((data.phoneSummary.sold_cogs_pence ?? 0) / 100) },
+              {
+                label: "Phone Gross Margin",
+                value: formatGBP((data.phoneSummary.gross_margin_pence ?? 0) / 100),
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-muted/30 border border-border rounded-xl p-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+                <p className="text-sm font-extrabold text-foreground tabular-nums">{value}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -14,6 +14,7 @@ import {
   Shield,
   Settings as SettingsIcon,
   FileText,
+  Smartphone,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -28,6 +29,7 @@ export const menuItems: MenuItem[] = [
   { to: "/dashboard/pos", label: "POS Register", icon: ShoppingCart, roles: ["admin", "staff"] },
   { to: "/dashboard/repairs", label: "Repair Invoices", icon: FileText },
   { to: "/dashboard/products", label: "Inventory & Parts", icon: Package },
+  { to: "/dashboard/phone-buy-sell", label: "Phone Buy & Sell", icon: Smartphone, roles: ["admin", "staff"] },
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/suppliers", label: "Suppliers", icon: Truck, roles: ["admin", "staff"] },
   { to: "/dashboard/purchases", label: "Purchases", icon: ShoppingBag, roles: ["admin", "staff"] },

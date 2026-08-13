@@ -90,6 +90,14 @@ export const getReports = createServerFn({ method: "GET" })
       0,
     );
 
+    // Phone buy/sell summary — informational breakdown only.
+    // Phone sales revenue/COGS are ALREADY included in grossRevenuePence/cogsPence above
+    // via existing sale_items records. This panel is a breakdown, NOT an addition.
+    const { data: phoneSummary } = await (context.supabase as any)
+      .from("v_phone_units_summary")
+      .select("*")
+      .single();
+
     return {
       fromDate,
       toDate,
@@ -118,5 +126,17 @@ export const getReports = createServerFn({ method: "GET" })
       stockValueCostPence,
       stockValueRetailPence,
       expenseBreakdown: expenses ?? [],
+      // Phone buy/sell informational breakdown
+      phoneSummary: phoneSummary ?? {
+        units_in_stock: 0,
+        units_sold: 0,
+        units_total: 0,
+        stock_cost_value_pence: 0,
+        total_purchased_pence: 0,
+        sold_revenue_pence: 0,
+        sold_cogs_pence: 0,
+        gross_margin_pence: 0,
+      },
     };
   });
+

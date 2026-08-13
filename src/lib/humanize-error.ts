@@ -21,6 +21,19 @@ export function humanizeError(
 
   const lower = message.toLowerCase();
 
+  // IMEI-specific errors
+  if (
+    lower.includes("imei") &&
+    (lower.includes("already exists") || lower.includes("already registered") || lower.includes("unique"))
+  ) {
+    return "This IMEI is already registered on an existing stock record. Check the Phone Buy & Sell register.";
+  }
+
+  // Phone unit status errors
+  if (lower.includes("already been sold") || lower.includes("not available for sale")) {
+    return "This phone has already been sold or is no longer available.";
+  }
+
   // Duplicate constraints
   if (
     lower.includes("duplicate key") ||
@@ -32,6 +45,9 @@ export function humanizeError(
     }
     if (lower.includes("email")) {
       return "A record with that email address already exists.";
+    }
+    if (lower.includes("idempotency")) {
+      return "This transaction was already recorded. Please refresh and check the register.";
     }
     return "This item already exists in the system.";
   }
