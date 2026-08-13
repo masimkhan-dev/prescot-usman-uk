@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Smartphone, MessageCircle, Phone, MapPin, ArrowRight, CheckCircle2 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { WhyChooseUs, FAQSection } from "@/components/site/Sections";
 
 export const Route = createFileRoute("/buy-sell-used-phones-prescot")({
@@ -13,17 +13,19 @@ export const Route = createFileRoute("/buy-sell-used-phones-prescot")({
         content:
           "Buy new, used and refurbished mobile phones in Prescot — iPhone, Samsung, Pixel and more. We also buy your old phone. Fair prices, honest advice.",
       },
-      { property: "og:title", content: "Buy & Sell Used Phones in Prescot" },
+      { property: "og:title", content: "Buy & Sell Used Phones in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "New, used and refurbished phones for sale in Prescot. We also buy your old phone for cash.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/buy-sell-used-phones-prescot" },
+      { property: "og:url", content: `${SITE_URL}/buy-sell-used-phones-prescot` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/buy-sell-used-phones-prescot" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/buy-sell-used-phones-prescot` }],
   }),
   component: Page,
 });

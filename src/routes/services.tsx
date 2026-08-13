@@ -9,7 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import {
   WhyChooseUs,
   BrandsWeRepair,
@@ -21,23 +21,25 @@ import {
 export const Route = createFileRoute("/services")({
   head: () => ({
     meta: [
-      { title: "Repair Services — Mobile, Laptop & Gaming | Prescot Mobiles" },
+      { title: "Mobile, Laptop & Gaming Repairs in Prescot | Prescot Mobiles" },
       {
         name: "description",
         content:
-          "Expert mobile, laptop, computer and gaming console repairs in Prescot. Screens, batteries, ports, water damage and more. Warranty on repairs.",
+          "Expert mobile, laptop, computer and gaming console repairs in Prescot. Screens, batteries, ports, water damage and more. Contact us for repair options.",
       },
-      { property: "og:title", content: "Repair Services | Prescot Mobiles" },
+      { property: "og:title", content: "Mobile, Laptop & Gaming Repairs in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "Mobile, laptop and gaming repairs in Prescot — walk-in, door-to-door and mail-in.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/services" },
+      { property: "og:url", content: `${SITE_URL}/services` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/services" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/services` }],
   }),
   component: ServicesPage,
 });

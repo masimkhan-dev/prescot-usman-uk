@@ -1,3 +1,6 @@
+/** Canonical production origin — used for absolute canonicals, og:url, JSON-LD and sitemap */
+export const SITE_URL = "https://www.prescotmobiles.co.uk";
+
 export const BUSINESS = {
   name: "Prescot Mobiles & Computer Services",
   shortName: "Prescot Mobiles",
@@ -137,7 +140,7 @@ export const REPAIR_PROCESS = [
 export const FAQS = [
   {
     q: "How long does a repair take?",
-    a: "Most common repairs like screens and batteries are done the same day. Complex jobs may take 2–3 working days.",
+    a: "Many common repairs, such as screen or battery replacements, may be completed the same day depending on the device, fault complexity and parts availability. Contact us for an accurate estimate.",
   },
   {
     q: "Do I need an appointment?",
@@ -145,7 +148,7 @@ export const FAQS = [
   },
   {
     q: "Do you offer mail-in repairs?",
-    a: "Yes. We accept mail-in repairs from across the UK and return your device fully insured.",
+    a: "Yes. We accept mail-in repairs from across the UK and return your device safely packaged.",
   },
   {
     q: "Do you offer door-to-door repairs?",
@@ -165,7 +168,7 @@ export const FAQS = [
   },
   {
     q: "Do repairs come with a warranty?",
-    a: "Eligible repairs come with a warranty on parts and workmanship. Ask us for exact terms before booking.",
+    a: "Eligible repairs include a warranty covering fitted replacement parts and workmanship. Ask us for exact warranty terms for your device.",
   },
 ];
 

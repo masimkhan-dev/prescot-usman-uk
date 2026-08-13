@@ -13,7 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { SITE_MEDIA } from "@/lib/site-content";
 
 export const Route = createFileRoute("/products")({
@@ -25,18 +25,20 @@ export const Route = createFileRoute("/products")({
         content:
           "Browse new, used and refurbished mobile phones, laptops, computers, gaming consoles and accessories at Prescot Mobiles. Ask the team about live availability and purchase terms.",
       },
-      { property: "og:title", content: "Products — Prescot Mobiles" },
+      { property: "og:title", content: "Phones, Laptops & Consoles for Sale in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "Buy new, used and refurbished phones, laptops, consoles and accessories in Prescot.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/products" },
+      { property: "og:url", content: `${SITE_URL}/products` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
     links: [
-      { rel: "canonical", href: "/products" },
+      { rel: "canonical", href: `${SITE_URL}/products` },
       { rel: "preload", as: "image", href: SITE_MEDIA.productsBanner.src },
     ],
   }),

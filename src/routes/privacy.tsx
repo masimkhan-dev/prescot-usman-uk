@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { ShieldCheck, Lock, Eye, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/privacy")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/privacy")({
         content: `UK GDPR compliant Privacy Policy for ${BUSINESS.name}. Learn how we protect your personal data.`,
       },
     ],
-    links: [{ rel: "canonical", href: "/privacy" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/privacy` }],
   }),
   component: PrivacyPage,
 });

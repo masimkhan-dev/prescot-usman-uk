@@ -18,28 +18,31 @@ import {
 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
 import { InstantPriceChecker } from "@/components/site/InstantPriceChecker";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { GOOGLE_PROOF, SITE_MEDIA } from "@/lib/site-content";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Prescot Mobiles & Computer Services | Device Repairs & Technology" },
+      { title: "Phone Repairs & Mobile Shop in Prescot | Prescot Mobiles" },
       {
         name: "description",
         content:
           "Mobile, laptop, computer, tablet and gaming-console repair services in Prescot, Liverpool. Walk-in, door-to-door and mail-in enquiries, plus devices and accessories.",
       },
-      { property: "og:title", content: "Prescot Mobiles & Computer Services" },
+      { property: "og:title", content: "Phone Repairs & Mobile Shop in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content: "Professional device repairs, practical support and technology retail in Prescot.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/" },
+      { property: "og:url", content: `${SITE_URL}/` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
     links: [
-      { rel: "canonical", href: "/" },
+      { rel: "canonical", href: `${SITE_URL}/` },
       { rel: "preload", as: "image", href: SITE_MEDIA.repairHero.src },
     ],
     scripts: [
@@ -47,13 +50,13 @@ export const Route = createFileRoute("/")({
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "LocalBusiness",
-          "@id": "https://prescotmobiles.co.uk/#business",
+          "@type": ["LocalBusiness", "ElectronicsStore"],
+          "@id": `${SITE_URL}/#business`,
           name: BUSINESS.name,
-          image: SITE_MEDIA.logo,
+          image: `${SITE_URL}${SITE_MEDIA.logo}`,
           telephone: BUSINESS.phone,
           email: BUSINESS.email,
-          url: "/",
+          url: `${SITE_URL}/`,
           address: {
             "@type": "PostalAddress",
             streetAddress: BUSINESS.addressLine,
@@ -68,7 +71,6 @@ export const Route = createFileRoute("/")({
           },
           openingHoursSpecification: BUSINESS.openingHoursSchema,
           areaServed: "Prescot, Merseyside, UK",
-          priceRange: "££",
         }),
       },
     ],
@@ -242,15 +244,15 @@ function HomePage() {
                   variants={itemVariants}
                   className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
                 >
-                  Technology support designed around care
+                  Technology repaired with precision
                 </motion.p>
 
                 <h1 className="hero-title mt-4 text-white">
                   <motion.span variants={lineVariants} className="block">
-                    Technology repaired
+                    Phone Repairs &amp; Mobile
                   </motion.span>
                   <motion.span variants={lineVariants} className="block text-[#FF493D]">
-                    with precision.
+                    Services in Prescot
                   </motion.span>
                 </h1>
 
@@ -353,15 +355,15 @@ function HomePage() {
                   variants={itemVariants}
                   className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
                 >
-                  Technology support designed around care
+                  Technology repaired with precision
                 </motion.p>
 
                 <h1 className="hero-title mt-3 !text-3xl text-white sm:!text-4xl">
                   <motion.span variants={lineVariants} className="block">
-                    Technology repaired
+                    Phone Repairs &amp; Mobile
                   </motion.span>
                   <motion.span variants={lineVariants} className="block text-[#FF493D]">
-                    with precision.
+                    Services in Prescot
                   </motion.span>
                 </h1>
 

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { SITE_URL } from "@/lib/business";
 
-// TODO: replace with your project URL once a project name or custom domain is set.
-const BASE_URL = "";
+// Production canonical origin — all sitemap <loc> entries must be absolute URLs.
+const BASE_URL = SITE_URL;
 
 interface SitemapEntry {
   path: string;
@@ -25,6 +26,11 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/laptop-computer-repair-prescot", changefreq: "monthly", priority: "0.9" },
           { path: "/gaming-console-repair-prescot", changefreq: "monthly", priority: "0.9" },
           { path: "/buy-sell-used-phones-prescot", changefreq: "monthly", priority: "0.9" },
+          { path: "/privacy", changefreq: "yearly", priority: "0.3" },
+          { path: "/terms", changefreq: "yearly", priority: "0.3" },
+          { path: "/repair-terms", changefreq: "yearly", priority: "0.3" },
+          { path: "/warranty", changefreq: "yearly", priority: "0.3" },
+          { path: "/refunds", changefreq: "yearly", priority: "0.3" },
         ];
 
         const urls = entries.map((e) =>

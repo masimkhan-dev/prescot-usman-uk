@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { ShieldCheck, CheckCircle2, XCircle, Info } from "lucide-react";
 
 export const Route = createFileRoute("/warranty")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/warranty")({
         content: `Learn how to confirm the repair warranty terms that apply at ${BUSINESS.name} Prescot.`,
       },
     ],
-    links: [{ rel: "canonical", href: "/warranty" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/warranty` }],
   }),
   component: WarrantyPage,
 });

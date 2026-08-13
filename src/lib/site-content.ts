@@ -35,7 +35,7 @@ export const SITE_MEDIA = {
 
 export const GOOGLE_PROOF = {
   rating: "4.8/5",
-  reviewCount: 96,
+  reviewCount: 99,
   reviewsUrl:
     "https://www.google.com/search?q=Prescot+Mobiles+%26+Computer+Services+Google+reviews",
   reviews: [

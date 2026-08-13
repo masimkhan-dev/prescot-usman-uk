@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Phone, Mail, MapPin, MessageCircle, Clock, Send, CheckCircle2 } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { SITE_MEDIA } from "@/lib/site-content";
 
 export const Route = createFileRoute("/contact")({
@@ -14,16 +14,18 @@ export const Route = createFileRoute("/contact")({
         content:
           "Get in touch with Prescot Mobiles by phone, WhatsApp, email or online form. Walk-in, door-to-door and mail-in repair quotes.",
       },
-      { property: "og:title", content: "Contact Prescot Mobiles" },
+      { property: "og:title", content: "Contact Prescot Mobiles | Prescot, Merseyside" },
       {
         property: "og:description",
         content: "Call, WhatsApp or send us an enquiry — we'll respond quickly with a fair quote.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/contact" },
+      { property: "og:url", content: `${SITE_URL}/contact` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/contact" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/contact` }],
   }),
   component: ContactPage,
 });

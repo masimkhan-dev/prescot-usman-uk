@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { Wrench, Database, ShieldAlert, Clock, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/repair-terms")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/repair-terms")({
         content: `Specific Repair Terms & Conditions for device repairs at ${BUSINESS.name} Prescot.`,
       },
     ],
-    links: [{ rel: "canonical", href: "/repair-terms" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/repair-terms` }],
   }),
   component: RepairTermsPage,
 });

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Award, Users, Wrench, Heart, Accessibility, MapPin, ArrowRight } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
 import { SITE_MEDIA } from "@/lib/site-content";
+import { SITE_URL } from "@/lib/business";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -12,16 +13,18 @@ export const Route = createFileRoute("/about")({
         content:
           "A trusted, family-run mobile and computer repair shop on Eccleston Street, Prescot. Honest advice, quality parts and a warm welcome.",
       },
-      { property: "og:title", content: "About Prescot Mobiles" },
+      { property: "og:title", content: "About Prescot Mobiles & Computer Services | Local Repair Experts" },
       {
         property: "og:description",
         content: "Trusted local mobile & computer repair specialists in Prescot, Merseyside.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/about" },
+      { property: "og:url", content: `${SITE_URL}/about` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/about" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/about` }],
   }),
   component: AboutPage,
 });

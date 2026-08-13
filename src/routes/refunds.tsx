@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { RefreshCw, ShoppingBag, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/refunds")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/refunds")({
         content: `Returns & Refund Policy compliant with UK Consumer Rights Act 2015 for ${BUSINESS.name}.`,
       },
     ],
-    links: [{ rel: "canonical", href: "/refunds" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/refunds` }],
   }),
   component: RefundsPage,
 });

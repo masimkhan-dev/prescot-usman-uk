@@ -1,2 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /auth
+
+Sitemap: https://www.prescotmobiles.co.uk/sitemap.xml

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Laptop } from "lucide-react";
 import { SeoLanding } from "@/components/site/SeoLanding";
+import { SITE_URL } from "@/lib/business";
 
 export const Route = createFileRoute("/laptop-computer-repair-prescot")({
   head: () => ({
@@ -9,19 +10,21 @@ export const Route = createFileRoute("/laptop-computer-repair-prescot")({
       {
         name: "description",
         content:
-          "Laptop and computer repairs in Prescot, L34. Screens, keyboards, batteries, SSD/RAM upgrades, Windows & macOS software issues. Free diagnostics.",
+          "Laptop and computer repairs in Prescot, L34. Screens, keyboards, batteries, SSD/RAM upgrades, Windows & macOS software issues. Contact us for a repair quote.",
       },
-      { property: "og:title", content: "Laptop & Computer Repair in Prescot" },
+      { property: "og:title", content: "Laptop & Computer Repair in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "Trusted laptop, desktop and Mac repairs in Prescot — hardware, software and upgrades.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/laptop-computer-repair-prescot" },
+      { property: "og:url", content: `${SITE_URL}/laptop-computer-repair-prescot` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/laptop-computer-repair-prescot" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/laptop-computer-repair-prescot` }],
   }),
   component: Page,
 });

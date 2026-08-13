@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Smartphone } from "lucide-react";
 import { SeoLanding } from "@/components/site/SeoLanding";
+import { SITE_URL } from "@/lib/business";
 
 export const Route = createFileRoute("/mobile-phone-repair-prescot")({
   head: () => ({
@@ -11,17 +12,19 @@ export const Route = createFileRoute("/mobile-phone-repair-prescot")({
         content:
           "Fast, affordable mobile phone repairs in Prescot, L34. Screen replacement, battery, charging port, camera and water damage. Walk-in, door-to-door & mail-in.",
       },
-      { property: "og:title", content: "Mobile Phone Repair in Prescot" },
+      { property: "og:title", content: "Mobile Phone Repair in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "Expert mobile phone repairs on Eccleston Street, Prescot — screens, batteries, ports and more.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/mobile-phone-repair-prescot" },
+      { property: "og:url", content: `${SITE_URL}/mobile-phone-repair-prescot` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/mobile-phone-repair-prescot" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/mobile-phone-repair-prescot` }],
   }),
   component: Page,
 });
@@ -32,7 +35,7 @@ function Page() {
       Icon={Smartphone}
       eyebrow="Mobile phone repair • Prescot"
       h1="Mobile phone repair in Prescot — done right, first time."
-      intro="Cracked screens, dead batteries, dodgy charging ports — our Prescot technicians fix mobile phones from every major brand. Most repairs completed the same day, with a warranty."
+      intro="Cracked screens, dead batteries, dodgy charging ports — our Prescot technicians fix mobile phones from every major brand. Many common repairs can be turned around quickly — contact us to discuss your device."
       services={[
         "iPhone & Android screen replacement",
         "Battery replacement",

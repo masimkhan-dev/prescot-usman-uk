@@ -4,6 +4,11 @@ import { useAuth } from "@/lib/auth-context";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+  head: () => ({
+    meta: [
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: AuthPage,
 });
 

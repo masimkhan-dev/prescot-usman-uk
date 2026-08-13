@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Gamepad2 } from "lucide-react";
 import { SeoLanding } from "@/components/site/SeoLanding";
+import { SITE_URL } from "@/lib/business";
 
 export const Route = createFileRoute("/gaming-console-repair-prescot")({
   head: () => ({
@@ -11,17 +12,19 @@ export const Route = createFileRoute("/gaming-console-repair-prescot")({
         content:
           "PlayStation, Xbox and Nintendo Switch repairs in Prescot. HDMI ports, controllers, fans, disc drives and overheating fixed by our local technicians.",
       },
-      { property: "og:title", content: "Gaming Console Repair in Prescot" },
+      { property: "og:title", content: "Gaming Console Repair in Prescot | Prescot Mobiles" },
       {
         property: "og:description",
         content:
           "PS5, Xbox and Nintendo Switch repairs in Prescot — HDMI ports, controllers, disc drives and more.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/gaming-console-repair-prescot" },
+      { property: "og:url", content: `${SITE_URL}/gaming-console-repair-prescot` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/gaming-console-repair-prescot" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/gaming-console-repair-prescot` }],
   }),
   component: Page,
 });

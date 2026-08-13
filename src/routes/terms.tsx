@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site/Layout";
-import { BUSINESS } from "@/lib/business";
+import { BUSINESS, SITE_URL } from "@/lib/business";
 import { Scale, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/terms")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/terms")({
         content: `Terms & Conditions for using ${BUSINESS.name} website and services in Prescot, Merseyside.`,
       },
     ],
-    links: [{ rel: "canonical", href: "/terms" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/terms` }],
   }),
   component: TermsPage,
 });

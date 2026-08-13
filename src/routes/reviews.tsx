@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star, ArrowRight } from "lucide-react";
 import { SiteLayout } from "@/components/site/Layout";
+import { SITE_URL } from "@/lib/business";
 
 export const Route = createFileRoute("/reviews")({
   head: () => ({
@@ -11,16 +12,18 @@ export const Route = createFileRoute("/reviews")({
         content:
           "Read what customers in Prescot and Merseyside say about our mobile, laptop and gaming repair services.",
       },
-      { property: "og:title", content: "Reviews — Prescot Mobiles" },
+      { property: "og:title", content: "Customer Reviews | Prescot Mobiles & Computer Services" },
       {
         property: "og:description",
         content: "Real reviews from local customers of Prescot Mobiles & Computer Services.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/reviews" },
+      { property: "og:url", content: `${SITE_URL}/reviews` },
+      { property: "og:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/site-assets/prescot-shopfront.webp` },
     ],
-    links: [{ rel: "canonical", href: "/reviews" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/reviews` }],
   }),
   component: ReviewsPage,
 });
