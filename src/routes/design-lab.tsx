@@ -671,7 +671,7 @@ function DesignLab() {
           </p>
         </footer>
 
-        <div className="dl-mobile-sticky" aria-label="Quick contact actions">
+        <div className="dl-mobile-sticky" role="region" aria-label="Quick contact actions">
           <a href={BUSINESS.phoneHref}>
             <Phone /> Call
           </a>

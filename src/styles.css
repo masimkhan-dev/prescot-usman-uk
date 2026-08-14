@@ -1,3 +1,66 @@
+/* ─── Self-Hosted Fonts ───────────────────────────────────────────────────────
+   No render-blocking third-party request. font-display:swap ensures text is
+   always visible with system fonts while WOFF2 files are fetched.
+   Font files live in /public/fonts/ — run scripts/download-fonts.mjs once.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Bricolage Grotesque — Display headings only (600–700 weight, Latin subset) */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url("/fonts/bricolage-grotesque-600-700.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Inter — Body text (400/500/600/700 weight, Latin subset) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/inter-400.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/inter-500.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/inter-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/inter-700.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -317,17 +380,39 @@
   padding-bottom: 0.04em;
 }
 
+/*
+ * hero-line: uses translateY only (NOT opacity) so the text is visible in the
+ * SSR/initial HTML. The parent has overflow:hidden which clips the slide-in.
+ * No fill-mode:backwards or fill-mode:both — element starts visible.
+ */
 .hero-line > span {
   display: block;
-  animation: hero-line-in 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: hero-line-in 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: none;
 }
 
 .hero-line:nth-child(2) > span {
   animation-delay: 110ms;
 }
 
+/*
+ * hero-actions, hero-body, hero-meta: fade in after heading.
+ * fill-mode:none = element is visible (opacity:1) before animation starts.
+ * This prevents opacity:0 appearing in the SSR HTML / initial paint.
+ */
 .hero-actions {
-  animation: hero-actions-in 620ms 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: hero-fade-in 620ms 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: none;
+}
+
+.hero-body {
+  animation: hero-fade-in 560ms 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: none;
+}
+
+.hero-meta {
+  animation: hero-fade-in 500ms 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: none;
 }
 
 .hero-image-reveal {
@@ -360,21 +445,30 @@
   scrollbar-color: #c8bdb2 transparent;
 }
 
+/*
+ * hero-line-in: translateY only. Opacity stays at 1 throughout.
+ * The parent's overflow:hidden provides the reveal effect without
+ * ever setting opacity:0 — safe for SSR + LCP measurement.
+ */
 @keyframes hero-line-in {
   from {
-    opacity: 0;
     transform: translateY(105%);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes hero-actions-in {
+/*
+ * hero-fade-in: used for body text, CTAs, and meta row.
+ * Starts at opacity:1 (fill-mode:none) so SSR renders element visible.
+ * On animation start it briefly goes to 0.6 and fades to 1 — a gentle
+ * shimmer effect that doesn't hide content before hydration.
+ */
+@keyframes hero-fade-in {
   from {
-    opacity: 0;
-    transform: translateY(16px);
+    opacity: 0.6;
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -436,6 +530,46 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─── Announcement Ticker ────────────────────────────────────────────────────
+   Pure CSS scroll — always GPU-composited (transform only, no layout props).
+   Pause-on-hover/focus is controlled via animation-play-state from JS.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* By default show the animated version, hide the static version */
+.ticker-static {
+  display: none;
+}
+
+.ticker-scroll-wrap {
+  display: flex;
+}
+
+.ticker-track {
+  animation: ticker-scroll 25s linear infinite;
+  /* Promote to its own compositing layer immediately */
+  will-change: transform;
+}
+
+/* Under prefers-reduced-motion: swap to static, hide the animated track */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-static {
+    display: flex;
+  }
+  .ticker-scroll-wrap {
+    display: none;
+  }
+}
+
 
 @utility tabular-nums {
   font-variant-numeric: tabular-nums;

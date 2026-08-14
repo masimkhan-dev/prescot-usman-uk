@@ -43,7 +43,16 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "canonical", href: `${SITE_URL}/` },
-      { rel: "preload", as: "image", href: SITE_MEDIA.repairHero.src },
+      // Single high-priority preload for the LCP hero image.
+      // fetchpriority is not a standard link attribute in TanStack's head API,
+      // so we rely on fetchPriority="high" on the <img> tag itself (which the
+      // browser honours) plus this preload to start the fetch early.
+      {
+        rel: "preload",
+        as: "image",
+        href: SITE_MEDIA.repairHero.src,
+        fetchpriority: "high",
+      },
     ],
     scripts: [
       {
@@ -155,119 +164,94 @@ const methods = [
   },
 ];
 
-import { motion, useReducedMotion } from "framer-motion";
-
 function HomePage() {
   const scrollToQuote = () =>
     document.getElementById("price-checker")?.scrollIntoView({ behavior: "smooth" });
-
-  const shouldReduceMotion = useReducedMotion();
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: shouldReduceMotion ? 0 : 0.12,
-        delayChildren: shouldReduceMotion ? 0 : 0.1,
-      },
-    },
-  };
-
-  const lineVariants = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] as const },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 16 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.2, 0.8, 0.2, 1] as const },
-    },
-  };
-
-  const imageRevealVariants = {
-    hidden: {
-      opacity: 0,
-      clipPath: shouldReduceMotion ? "inset(0% 0% 0% 0%)" : "inset(0% 0% 100% 0% round 1rem)",
-      scale: shouldReduceMotion ? 1 : 1.04,
-    },
-    visible: {
-      opacity: 1,
-      clipPath: "inset(0% 0% 0% 0% round 1rem)",
-      scale: 1,
-      transition: { duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as const, delay: 0.15 },
-    },
-  };
 
   return (
     <SiteLayout>
       <section className="section-pad bg-[#FAF7F2] py-6 sm:py-8 lg:py-12">
         <div className="container-page">
           <div className="group relative overflow-hidden rounded-2xl border border-[#E2DAD0] bg-[#141414] shadow-xl">
-            {/* Desktop Layout (>= 768px / lg:flex) */}
-            <motion.div
-              className="relative hidden min-h-[580px] lg:flex lg:items-center"
-              initial={shouldReduceMotion ? "visible" : "hidden"}
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={containerVariants}
-            >
-              {/* Desktop Hero Image Container with soft masked clip-path animation */}
-              <div className="absolute inset-0 overflow-hidden">
-                <motion.div className="h-full w-full" variants={imageRevealVariants}>
-                  <img
-                    src={SITE_MEDIA.repairHero.src}
-                    alt="Technician carefully repairing a mobile device hardware component"
-                    width={SITE_MEDIA.repairHero.width}
-                    height={SITE_MEDIA.repairHero.height}
-                    fetchPriority="high"
-                    className="h-full w-full object-cover object-right transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
-                  />
-                </motion.div>
-                {/* Restrained dark gradient overlay behind copy on the left */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/90 to-transparent lg:w-[58%]"
-                  aria-hidden="true"
-                />
-              </div>
+            {/*
+             * SINGLE RESPONSIVE HERO
+             * One <img> serves both desktop and mobile — CSS handles the visual layout.
+             * - Desktop (≥ lg): image fills the right side, copy overlays left
+             * - Mobile (< lg): image is a full-bleed background, copy overlays at bottom
+             *
+             * PERFORMANCE NOTES:
+             * - fetchPriority="high" + preload link = browser fetches image at highest priority
+             * - No opacity:0 on the img or its ancestors in the SSR HTML
+             * - Hero container text animates in via CSS @keyframes AFTER paint (not before)
+             * - decoding="sync" on LCP image so it blocks decode but not layout
+             */}
 
-              {/* Foreground Copy & CTAs */}
-              <div className="relative z-10 max-w-2xl p-12 lg:p-16">
-                <motion.p
-                  variants={itemVariants}
-                  className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
-                >
+            {/* ── SHARED BACKGROUND IMAGE (visible immediately on SSR, no opacity:0) ── */}
+            <div className="absolute inset-0 overflow-hidden">
+              {/*
+               * Responsive hero image — single element, multiple sources.
+               * Mobile (≤767px): 480px AVIF ~7KB vs original 1942px ~47KB
+               * Tablet (768–1279px): 768px AVIF ~14KB
+               * Desktop (≥1280px): 1280/1920px AVIF ~30-45KB
+               * fetchpriority="high" + <link rel="preload"> = highest-priority fetch
+               */}
+              <picture>
+                {/* AVIF — smallest file size, supported by all modern browsers */}
+                <source
+                  type="image/avif"
+                  srcSet="/site-assets/responsive/prescot-repair-hero-480.avif 480w, /site-assets/responsive/prescot-repair-hero-768.avif 768w, /site-assets/responsive/prescot-repair-hero-1280.avif 1280w, /site-assets/responsive/prescot-repair-hero-1920.avif 1920w"
+                  sizes="100vw"
+                />
+                {/* WebP — fallback for older AVIF support */}
+                <source
+                  type="image/webp"
+                  srcSet="/site-assets/responsive/prescot-repair-hero-480.webp 480w, /site-assets/responsive/prescot-repair-hero-768.webp 768w, /site-assets/responsive/prescot-repair-hero-1280.webp 1280w, /site-assets/responsive/prescot-repair-hero-1920.webp 1920w"
+                  sizes="100vw"
+                />
+                <img
+                  src={SITE_MEDIA.repairHero.src}
+                  alt="Technician carefully repairing a mobile device hardware component"
+                  width={SITE_MEDIA.repairHero.width}
+                  height={SITE_MEDIA.repairHero.height}
+                  fetchPriority="high"
+                  decoding="sync"
+                  className="h-full w-full object-cover object-[75%_center] transition-transform duration-700 [@media(hover:hover)]:group-hover:scale-[1.015]"
+                />
+              </picture>
+              {/* Mobile scrim (< lg): gradient from bottom */}
+              <div
+                className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-[#141414]/30 lg:hidden"
+                aria-hidden="true"
+              />
+              {/* Desktop scrim (≥ lg): gradient from left */}
+              <div
+                className="absolute inset-0 hidden bg-gradient-to-r from-[#141414] via-[#141414]/90 to-transparent lg:block lg:w-[58%]"
+                aria-hidden="true"
+              />
+            </div>
+
+            {/* ── DESKTOP COPY (≥ lg): left-side overlay ── */}
+            <div className="relative z-10 hidden min-h-[580px] items-center lg:flex">
+              <div className="hero-content max-w-2xl p-12 lg:p-16">
+                <p className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]">
                   Technology repaired with precision
-                </motion.p>
+                </p>
 
                 <h1 className="hero-title mt-4 text-white">
-                  <motion.span variants={lineVariants} className="block">
-                    Phone Repairs &amp; Mobile
-                  </motion.span>
-                  <motion.span variants={lineVariants} className="block text-[#FF493D]">
-                    Services in Prescot
-                  </motion.span>
+                  <span className="block hero-line">
+                    <span>Phone Repairs &amp; Mobile</span>
+                  </span>
+                  <span className="block hero-line text-[#FF493D]">
+                    <span>Services in Prescot</span>
+                  </span>
                 </h1>
 
-                <motion.p
-                  variants={itemVariants}
-                  className="mt-6 max-w-xl text-base leading-8 text-white/80 md:text-lg"
-                >
+                <p className="hero-body mt-6 max-w-xl text-base leading-8 text-white/80 md:text-lg">
                   Mobile, laptop, computer, tablet and gaming repair services designed around clear
                   advice, quality and care.
-                </motion.p>
+                </p>
 
-                <motion.div
-                  variants={itemVariants}
-                  className="hero-actions mt-8 flex flex-wrap items-center gap-3"
-                >
+                <div className="hero-actions mt-8 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
                     onClick={scrollToQuote}
@@ -291,12 +275,9 @@ function HomePage() {
                   >
                     <Phone className="h-4 w-4" /> Call Now
                   </a>
-                </motion.div>
+                </div>
 
-                <motion.div
-                  variants={itemVariants}
-                  className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-white/15 pt-6 text-xs font-semibold text-white/75"
-                >
+                <div className="hero-meta mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-white/15 pt-6 text-xs font-semibold text-white/75">
                   <a
                     href="#visit"
                     className="group/link flex items-center gap-2 transition hover:text-white"
@@ -318,68 +299,33 @@ function HomePage() {
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#34D399]" /> Open 7 days
                   </span>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Mobile / Tablet Hero Overlay Layout (< 768px / lg:hidden) */}
-            <motion.div
-              className="relative flex min-h-[clamp(520px,78svh,680px)] flex-col justify-end p-6 sm:p-10 lg:hidden"
-              initial={shouldReduceMotion ? "visible" : "hidden"}
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={containerVariants}
-            >
-              {/* Full-width Background Image with carefully controlled cropping */}
-              <div className="absolute inset-0 overflow-hidden">
-                <picture>
-                  <img
-                    src={SITE_MEDIA.repairHero.src}
-                    alt="Technician carefully repairing a mobile device hardware component"
-                    width={SITE_MEDIA.repairHero.width}
-                    height={SITE_MEDIA.repairHero.height}
-                    fetchPriority="high"
-                    className="h-full w-full object-cover object-[75%_center]"
-                  />
-                </picture>
-                {/* Carefully balanced dark gradient scrim behind copy for contrast */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/85 to-[#141414]/30"
-                  aria-hidden="true"
-                />
-              </div>
-
-              {/* Overlaid Hero Content */}
-              <div className="relative z-10 flex flex-col justify-end">
-                <motion.p
-                  variants={itemVariants}
-                  className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]"
-                >
+            {/* ── MOBILE COPY (< lg): bottom overlay ── */}
+            <div className="relative z-10 flex min-h-[clamp(520px,78svh,680px)] flex-col justify-end p-6 sm:p-10 lg:hidden">
+              <div className="flex flex-col justify-end">
+                <p className="eyebrow !text-[#FF493D] !normal-case !tracking-[.06em]">
                   Technology repaired with precision
-                </motion.p>
+                </p>
 
                 <h1 className="hero-title mt-3 !text-3xl text-white sm:!text-4xl">
-                  <motion.span variants={lineVariants} className="block">
-                    Phone Repairs &amp; Mobile
-                  </motion.span>
-                  <motion.span variants={lineVariants} className="block text-[#FF493D]">
-                    Services in Prescot
-                  </motion.span>
+                  <span className="block hero-line">
+                    <span>Phone Repairs &amp; Mobile</span>
+                  </span>
+                  <span className="block hero-line text-[#FF493D]">
+                    <span>Services in Prescot</span>
+                  </span>
                 </h1>
 
-                <motion.p
-                  variants={itemVariants}
-                  className="mt-3 text-sm leading-6 text-white/90 sm:text-base sm:leading-7"
-                >
+                <p className="hero-body mt-3 text-sm leading-6 text-white/90 sm:text-base sm:leading-7">
                   Mobile, laptop, computer, tablet and gaming repair services designed around clear
                   advice, quality and care.
-                </motion.p>
+                </p>
 
-                {/* Mobile CTA Hierarchy: Primary -> Secondary -> Simple Tertiary */}
-                <motion.div
-                  variants={itemVariants}
-                  className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap"
-                >
+                {/* Mobile CTA Hierarchy: Primary → Secondary → Simple Tertiary */}
+                <div className="hero-actions mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={scrollToQuote}
@@ -403,12 +349,9 @@ function HomePage() {
                   >
                     <Phone className="h-4 w-4" /> Call Now
                   </a>
-                </motion.div>
+                </div>
 
-                <motion.div
-                  variants={itemVariants}
-                  className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/20 pt-4 text-xs font-semibold text-white/80"
-                >
+                <div className="hero-meta mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/20 pt-4 text-xs font-semibold text-white/80">
                   <a href="#visit" className="flex items-center gap-2">
                     <img
                       src={SITE_MEDIA.shopfront.src}
@@ -416,6 +359,7 @@ function HomePage() {
                       width={20}
                       height={20}
                       loading="lazy"
+                      decoding="async"
                       className="h-5 w-5 rounded-full border border-white/20 object-cover"
                     />
                     <span>Visit us on Eccleston Street</span>
@@ -423,9 +367,9 @@ function HomePage() {
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#34D399]" /> Open 7 days
                   </span>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -460,6 +404,7 @@ function HomePage() {
                     width={600}
                     height={600}
                     loading="lazy"
+                    decoding="async"
                     sizes="(max-width: 767px) 100vw, 40vw"
                     className="h-full min-h-56 w-full object-cover mix-blend-multiply transition-transform duration-500 motion-safe:group-hover:scale-105"
                   />
@@ -626,9 +571,10 @@ function HomePage() {
               </h2>
             </div>
             <div className="shrink-0 md:text-right">
+              {/* aria-hidden: decorative stars — the text below is the accessible label */}
               <div className="flex gap-1 text-[#B15D00] md:justify-end" aria-hidden="true">
                 {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} className="h-5 w-5 fill-current" />
+                  <Star key={index} className="h-5 w-5 fill-current" aria-hidden="true" />
                 ))}
               </div>
               <strong className="mt-2 block text-lg text-[#171717]">
@@ -645,18 +591,24 @@ function HomePage() {
                 key={review.name}
                 className={`min-w-[86%] snap-center rounded-xl border border-[#E7DED5] p-7 sm:min-w-[70%] md:min-w-0 ${index === 0 ? "bg-[#171717] text-white md:p-10" : "bg-[#FAF7F2]"}`}
               >
+                {/*
+                 * ARIA FIX: role="img" + descriptive aria-label on the star container.
+                 * Without role="img", aria-label on a generic div is prohibited (ARIA spec).
+                 * Each Star SVG is aria-hidden="true" as they are purely decorative.
+                 */}
                 <div
                   className={`flex gap-1 ${index === 0 ? "text-[#FFB84D]" : "text-[#B15D00]"}`}
-                  aria-label="5 stars"
+                  role="img"
+                  aria-label="Rated 5 out of 5 stars"
                 >
                   {Array.from({ length: 5 }).map((_, star) => (
-                    <Star key={star} className="h-4 w-4 fill-current" />
+                    <Star key={star} className="h-4 w-4 fill-current" aria-hidden="true" />
                   ))}
                 </div>
                 <blockquote
                   className={`mt-8 font-display text-2xl leading-snug ${index === 0 ? "text-white md:text-3xl" : "text-[#171717]"}`}
                 >
-                  “{review.quote}”
+                  "{review.quote}"
                 </blockquote>
                 <p
                   className={`mt-8 text-sm font-bold ${index === 0 ? "text-white" : "text-[#403B36]"}`}
@@ -686,15 +638,27 @@ function HomePage() {
             <div className="lg:col-span-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700">
               <figure className="group overflow-hidden rounded-2xl border border-[#E2DAD0] bg-white shadow-sm transition duration-300">
                 <div className="overflow-hidden">
-                  <img
-                    src={SITE_MEDIA.shopfront.src}
-                    alt={SITE_MEDIA.shopfront.alt}
-                    width={SITE_MEDIA.shopfront.width}
-                    height={SITE_MEDIA.shopfront.height}
-                    loading="lazy"
-                    decoding="async"
-                    className="aspect-[4/3] w-full object-cover object-center transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.02]"
-                  />
+                  <picture>
+                    <source
+                      type="image/avif"
+                      srcSet="/site-assets/responsive/prescot-shopfront-480.avif 480w, /site-assets/responsive/prescot-shopfront-768.avif 768w, /site-assets/responsive/prescot-shopfront-1200.avif 1200w"
+                      sizes="(max-width: 1023px) 100vw, 50vw"
+                    />
+                    <source
+                      type="image/webp"
+                      srcSet="/site-assets/responsive/prescot-shopfront-480.webp 480w, /site-assets/responsive/prescot-shopfront-768.webp 768w, /site-assets/responsive/prescot-shopfront-1200.webp 1200w"
+                      sizes="(max-width: 1023px) 100vw, 50vw"
+                    />
+                    <img
+                      src={SITE_MEDIA.shopfront.src}
+                      alt={SITE_MEDIA.shopfront.alt}
+                      width={SITE_MEDIA.shopfront.width}
+                      height={SITE_MEDIA.shopfront.height}
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-[4/3] w-full object-cover object-center transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.02]"
+                    />
+                  </picture>
                 </div>
                 <figcaption className="p-4 text-center text-xs text-[#625B55]">
                   {SITE_MEDIA.shopfront.caption}
@@ -702,7 +666,7 @@ function HomePage() {
               </figure>
             </div>
             <div className="flex flex-col justify-center lg:col-span-6">
-              <p className="eyebrow">Visit & contact</p>
+              <p className="eyebrow">Visit &amp; contact</p>
               <h2 className="mt-4 text-4xl leading-tight md:text-5xl lg:text-6xl">
                 Visit Our Store
               </h2>

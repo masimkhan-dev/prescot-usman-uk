@@ -19,7 +19,7 @@ export function TrustBar() {
           {/* Card 1: Google Rating */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-[#D92D20] transition-all flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
-              <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
+              <Star className="w-6 h-6 fill-amber-400 text-amber-400" aria-hidden="true" />
             </div>
             <div>
               <div className="text-xl font-extrabold text-[#0F172A] flex items-center gap-1.5">

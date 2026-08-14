@@ -76,12 +76,22 @@ function ReviewsPage() {
           <h1 className="mt-3 text-4xl md:text-5xl font-bold text-ink">
             Trusted by locals in Prescot & Merseyside.
           </h1>
-          <div className="mt-6 flex items-center justify-center gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className="w-6 h-6 text-brand fill-brand" />
-            ))}
-            <span className="ml-2 text-lg font-bold text-ink">5.0</span>
-            <span className="text-muted-foreground">· based on real customer feedback</span>
+          <div
+            className="mt-6 flex items-center justify-center gap-2"
+            role="img"
+            aria-label="Rated 5.0 out of 5 stars"
+          >
+            <div className="flex gap-1" aria-hidden="true">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} className="w-6 h-6 text-brand fill-brand" />
+              ))}
+            </div>
+            <span className="ml-2 text-lg font-bold text-ink" aria-hidden="true">
+              5.0
+            </span>
+            <span className="text-muted-foreground" aria-hidden="true">
+              · based on real customer feedback
+            </span>
           </div>
         </div>
       </section>
@@ -90,9 +100,13 @@ function ReviewsPage() {
         <div className="container-page grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {reviews.map((r) => (
             <div key={r.name} className="card-soft">
-              <div className="flex gap-1">
+              <div
+                className="flex gap-1"
+                role="img"
+                aria-label={`Rated ${r.rating} out of 5 stars`}
+              >
                 {Array.from({ length: r.rating }).map((_, i) => (
-                  <Star key={i} className="w-4 h-4 text-brand fill-brand" />
+                  <Star key={i} className="w-4 h-4 text-brand fill-brand" aria-hidden="true" />
                 ))}
               </div>
               <p className="mt-4 text-ink/90 leading-relaxed">"{r.text}"</p>
