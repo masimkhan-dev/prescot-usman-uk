@@ -144,20 +144,20 @@ export function RepairA4InvoiceModal({
         {/* Scrollable Printable A4 Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible printable-a4-area">
           {/* SINGLE A4 PAGE: REPAIR INVOICE & RECEIPT */}
-          <div className="bg-white border-0 shadow-none p-6 sm:p-8 rounded-none max-w-3xl mx-auto space-y-5 sm:space-y-6 text-slate-900 font-sans a4-sheet-page">
+          <div className="bg-white border-0 shadow-none p-6 sm:p-8 print:p-4 max-w-3xl mx-auto space-y-4 sm:space-y-5 print:space-y-3.5 text-slate-900 font-sans a4-sheet-page">
             {/* 1. SHOP HEADER & LOGO */}
-            <div className="flex justify-between items-start pb-4 border-b-2 border-slate-900 gap-4">
+            <div className="flex justify-between items-start pb-3.5 border-b-2 border-slate-900 gap-4">
               <div className="space-y-1">
                 <h1 className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">
-                  PRESCOT MOBILES & COMPUTER SERVICES
+                  PRESCOT MOBILES &amp; COMPUTER SERVICES
                 </h1>
-                <p className="text-xs text-slate-700 font-medium">
+                <p className="text-xs sm:text-sm text-slate-700 font-medium">
                   57 Eccleston Street, Prescot L34 5QH
                 </p>
-                <p className="text-xs text-slate-700 font-medium">
+                <p className="text-xs sm:text-sm text-slate-700 font-medium">
                   Tel: +44 7491 248770
                 </p>
-                <p className="text-xs text-slate-600 font-mono">
+                <p className="text-xs sm:text-sm text-slate-600 font-mono">
                   info@prescotmobiles.co.uk | www.prescotmobiles.co.uk
                 </p>
               </div>
@@ -166,7 +166,7 @@ export function RepairA4InvoiceModal({
                 <img
                   src="/site-assets/prescot-logo.png"
                   alt="Prescot Mobile Shop Logo"
-                  className="h-28 sm:h-36 max-w-[260px] w-auto object-contain"
+                  className="h-26 sm:h-30 print:h-24 max-w-[260px] w-auto object-contain"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = "none";
                   }}
@@ -175,10 +175,12 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 2. INVOICE / RECEIPT NUMBER & DATE BAR */}
-            <div className="flex items-center justify-between gap-2 pt-1 font-mono text-xs border-b border-slate-300 pb-3">
+            <div className="flex items-center justify-between gap-2 pt-1 font-mono text-xs sm:text-sm border-b border-slate-300 pb-2.5">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-600">INVOICE NO:</span>
-                <span className="font-extrabold text-sm text-brand">{repair.rep_number}</span>
+                <span className="font-extrabold text-sm sm:text-base text-brand">
+                  {repair.rep_number}
+                </span>
               </div>
               <div className="text-center font-black text-sm sm:text-base tracking-widest text-slate-900 uppercase">
                 REPAIR INVOICE / RECEIPT
@@ -190,7 +192,7 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 3. CUSTOMER DETAILS BOX */}
-            <div className="bg-slate-50 border-0 rounded-xl p-4 space-y-1.5 text-xs relative group">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-1.5 text-xs sm:text-sm relative group">
               <div className="flex items-center justify-between underline mb-1">
                 <span className="font-bold text-[10px] text-slate-500 uppercase tracking-wider">
                   CUSTOMER DETAILS
@@ -231,7 +233,7 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 4. MAIN REPAIR JOB & DEVICE BOX */}
-            <div className="bg-slate-50/50 border-0 rounded-xl p-4 space-y-3 text-xs">
+            <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-2.5 text-xs sm:text-sm">
               {/* Device Spec Rows */}
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 border-b border-slate-300 pb-2">
                 <div className="flex items-baseline">
@@ -265,28 +267,28 @@ export function RepairA4InvoiceModal({
               {/* Work Completed & Cost Items Table */}
               <div className="space-y-1">
                 <span className="font-extrabold text-[10px] text-slate-900 uppercase tracking-wider block">
-                  REPAIR ITEMS & WORKSHOP SUMMARY:
+                  REPAIR ITEMS &amp; WORKSHOP SUMMARY:
                 </span>
                 <table className="w-full text-left text-xs border border-slate-300 rounded-md overflow-hidden">
                   <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
                     <tr>
-                      <th className="py-1.5 px-2.5">Description</th>
-                      <th className="py-1.5 px-2.5 text-center">Quality</th>
-                      <th className="py-1.5 px-2.5 text-center">Warranty</th>
-                      <th className="py-1.5 px-2.5 text-right">Amount</th>
+                      <th className="py-1.5 px-3">Description</th>
+                      <th className="py-1.5 px-3 text-center">Quality</th>
+                      <th className="py-1.5 px-3 text-center">Warranty</th>
+                      <th className="py-1.5 px-3 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {repair.repair_items && repair.repair_items.length > 0 ? (
                       repair.repair_items.map((item: any) => (
                         <tr key={item.id}>
-                          <td className="py-1.5 px-2.5 font-semibold text-slate-900">
+                          <td className="py-1.5 px-3 font-semibold text-slate-900">
                             {item.description}
                           </td>
-                          <td className="py-1.5 px-2.5 text-center capitalize text-slate-600">
+                          <td className="py-1.5 px-3 text-center capitalize text-slate-600">
                             {item.part_quality || "Standard"}
                           </td>
-                          <td className="py-1.5 px-2.5 text-center font-bold text-slate-900">
+                          <td className="py-1.5 px-3 text-center font-bold text-slate-900">
                             {formatWarrantyText(item.warranty_days)}
                             {item.warranty_policy_text && (
                               <p className="text-[9px] font-normal text-slate-500 italic mt-0.5 leading-tight">
@@ -294,7 +296,7 @@ export function RepairA4InvoiceModal({
                               </p>
                             )}
                           </td>
-                          <td className="py-1.5 px-2.5 text-right font-bold font-mono">
+                          <td className="py-1.5 px-3 text-right font-bold font-mono">
                             £
                             {(
                               ((item.customer_price_pence || 0) + (item.labour_price_pence || 0)) /
@@ -305,13 +307,11 @@ export function RepairA4InvoiceModal({
                       ))
                     ) : (
                       <tr>
-                        <td className="py-1.5 px-2.5 font-semibold text-slate-900">
-                          {repair.issue}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-center capitalize text-slate-600">
+                        <td className="py-1.5 px-3 font-semibold text-slate-900">{repair.issue}</td>
+                        <td className="py-1.5 px-3 text-center capitalize text-slate-600">
                           Standard
                         </td>
-                        <td className="py-1.5 px-2.5 text-center font-bold text-slate-900">
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-900">
                           {formatWarrantyText(repair.warranty_days)}
                           {repair.warranty_policy_text && (
                             <p className="text-[9px] font-normal text-slate-500 italic mt-0.5 leading-tight">
@@ -319,7 +319,7 @@ export function RepairA4InvoiceModal({
                             </p>
                           )}
                         </td>
-                        <td className="py-1.5 px-2.5 text-right font-bold font-mono">
+                        <td className="py-1.5 px-3 text-right font-bold font-mono">
                           £{(quotePence / 100).toFixed(2)}
                         </td>
                       </tr>
@@ -329,7 +329,7 @@ export function RepairA4InvoiceModal({
               </div>
 
               {/* Cost Totals & Payment Summary */}
-              <div className="flex justify-between items-end pt-1.5 border-t border-slate-300">
+              <div className="flex justify-between items-end pt-2 border-t border-slate-300">
                 <div>
                   {isPaidFull ? (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-xs uppercase tracking-wider">
@@ -375,7 +375,7 @@ export function RepairA4InvoiceModal({
               </div>
 
               {/* Customer Signature & Notes Line */}
-              <div className="pt-1.5 border-t border-slate-300 space-y-1.5">
+              <div className="pt-2 border-t border-slate-300 space-y-1">
                 <div>
                   <span className="font-bold text-slate-800 text-[11px]">
                     Customer Signature __________________________________________________
@@ -391,40 +391,28 @@ export function RepairA4InvoiceModal({
             </div>
 
             {/* 5. SHORT TERMS AND CONDITIONS SECTION */}
-            <div className="bg-slate-50 border-0 rounded-xl p-3.5 text-[9.5px] leading-relaxed text-slate-700 space-y-1">
-              <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-1 mb-1">
-                TERMS AND CONDITIONS
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[9px] sm:text-[9.5px] leading-snug text-slate-700 space-y-1">
+              <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-0.5 mb-0.5">
+                TERMS AND CONDITIONS (ALL PHONES/DEVICES TESTED &amp; PAID AT COLLECTION)
               </div>
-              <p className="font-semibold text-slate-800 text-[9px] mb-0.5">
-                All phones and devices to be tested and paid for at collection.
-              </p>
-              <ol className="list-decimal list-inside space-y-0.5 text-[9px] text-slate-600">
+              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 list-decimal list-inside text-slate-600">
+                <li>Not responsible for loss of ANY data. Please backup device prior to repair.</li>
                 <li>
-                  We are not responsible for the loss of ANY data. Please backup your device prior
-                  to repair.
+                  Owner's responsibility to remove SIM &amp; memory cards. Not responsible for loss.
                 </li>
                 <li>
-                  It is the owner's responsibility to remove SIM and memory cards. We are not
-                  responsible for loss or damage.
+                  No warranty on LCDs/touchscreens if physical marks, scratches, or cracks occur
+                  after collection.
                 </li>
+                <li>Only repair fault booked in for. Additional faults require separate quote.</li>
                 <li>
-                  No warranty is provided on LCDs or touch screens if the device has physical marks,
-                  scratches, or cracks after collection.
+                  Warranty covers replacement parts &amp; workmanship. Water damage voids all
+                  warranty.
                 </li>
-                <li>
-                  We will only repair the fault booked in for. Additional faults discovered will
-                  require a separate quotation.
+                <li>Collect within 30 days. Devices left &gt;60 days handled per full T&amp;Cs.</li>
+                <li className="col-span-1 sm:col-span-2 text-slate-500 italic">
+                  Ask staff for our full Terms &amp; Conditions.
                 </li>
-                <li>
-                  Quoted warranty covers replacement parts and workmanship only. Water damage voids
-                  all warranties.
-                </li>
-                <li>
-                  Devices should be collected within 30 days of booking in or a storage charge may
-                  apply. Devices left longer than 60 days may be handled in accordance with our full
-                  Terms &amp; Conditions.
-                </li>
-                <li>Please ask us for our full Terms &amp; Conditions.</li>
               </ol>
             </div>
 
@@ -447,21 +435,23 @@ export function RepairA4InvoiceModal({
               </div>
 
               {/* Right Column: Google Review QR Code Block */}
-              <div className="flex flex-col items-center justify-center text-center space-y-0.5 shrink-0 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                <span className="font-extrabold text-[8.5px] uppercase tracking-wider text-slate-800">
-                  SHARE YOUR EXPERIENCE
-                </span>
+              <div className="flex flex-row items-center gap-3 shrink-0 bg-slate-50 p-2 rounded-xl border border-slate-200">
                 <img
                   src="/site-assets/google-review-qr.png"
                   alt="Scan to leave Prescot Mobiles a Google review"
-                  className="w-[80px] h-[80px] object-contain bg-white p-0.5 rounded border border-slate-200 aspect-square"
+                  className="w-[82px] h-[82px] object-contain bg-white p-1 rounded-lg border border-slate-200 aspect-square shadow-2xs"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = "none";
                   }}
                 />
-                <span className="text-[8px] font-semibold text-slate-600">
-                  Scan to leave us a review on Google
-                </span>
+                <div className="text-left">
+                  <span className="font-extrabold text-[9.5px] uppercase tracking-wider text-slate-800 block">
+                    SHARE YOUR EXPERIENCE
+                  </span>
+                  <span className="text-[8.5px] font-semibold text-slate-600 block leading-snug mt-0.5 max-w-[120px]">
+                    Scan QR code to review us on Google
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -543,22 +533,22 @@ export function RepairA4InvoiceModal({
         </div>
       )}
 
-      {/* SINGLE-PAGE A4 PRINT ENGINE CSS */}
+      {/* SINGLE-PAGE A4 PRINT ENGINE CSS — STRICT 1-PAGE FIT */}
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 6mm 8mm;
+            margin: 4mm 6mm;
           }
 
           html, body {
             background: #ffffff !important;
             color: #000000 !important;
             width: 100% !important;
-            height: auto !important;
+            height: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -591,12 +581,12 @@ export function RepairA4InvoiceModal({
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            height: auto !important;
+            height: 100% !important;
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
             display: block !important;
-            overflow: visible !important;
+            overflow: hidden !important;
           }
 
           .print-modal-card {
@@ -606,7 +596,7 @@ export function RepairA4InvoiceModal({
             box-shadow: none !important;
             max-width: 100% !important;
             max-height: none !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -617,7 +607,7 @@ export function RepairA4InvoiceModal({
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             width: 100% !important;
             display: block !important;
           }
@@ -625,17 +615,18 @@ export function RepairA4InvoiceModal({
           .a4-sheet-page {
             display: block !important;
             width: 190mm !important;
+            max-height: 282mm !important;
             box-sizing: border-box !important;
             margin: 0 auto !important;
-            padding: 5mm 6mm !important;
+            padding: 2mm 3mm !important;
             background: #ffffff !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            break-after: auto !important;
-            page-break-after: auto !important;
+            break-after: avoid !important;
+            page-break-after: avoid !important;
           }
         }
       `}</style>

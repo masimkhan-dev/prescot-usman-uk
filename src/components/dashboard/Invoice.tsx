@@ -310,16 +310,16 @@ export function InvoiceModal({
         @media print {
           @page {
             size: ${viewMode === "a4" ? "A4 portrait" : "80mm auto"};
-            margin: ${viewMode === "a4" ? "6mm 8mm" : "0mm"};
+            margin: ${viewMode === "a4" ? "4mm 6mm" : "0mm"};
           }
           html, body {
             background: #ffffff !important;
             color: #000000 !important;
             width: 100% !important;
-            height: auto !important;
+            height: ${viewMode === "a4" ? "100%" : "auto"} !important;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: visible !important;
+            overflow: ${viewMode === "a4" ? "hidden" : "visible"} !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -346,12 +346,12 @@ export function InvoiceModal({
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            height: auto !important;
+            height: ${viewMode === "a4" ? "100%" : "auto"} !important;
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
             display: block !important;
-            overflow: visible !important;
+            overflow: ${viewMode === "a4" ? "hidden" : "visible"} !important;
           }
           .print-modal-card {
             position: static !important;
@@ -360,7 +360,7 @@ export function InvoiceModal({
             box-shadow: none !important;
             max-width: 100% !important;
             max-height: none !important;
-            overflow: visible !important;
+            overflow: ${viewMode === "a4" ? "hidden" : "visible"} !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -370,22 +370,25 @@ export function InvoiceModal({
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
-            overflow: visible !important;
+            overflow: ${viewMode === "a4" ? "hidden" : "visible"} !important;
             width: 100% !important;
             display: block !important;
           }
           .a4-sheet-page {
             display: block !important;
             width: 190mm !important;
+            max-height: 282mm !important;
             box-sizing: border-box !important;
             margin: 0 auto !important;
-            padding: 5mm 6mm !important;
+            padding: 2mm 3mm !important;
             background: #ffffff !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            break-after: avoid !important;
+            page-break-after: avoid !important;
           }
           #thermal-receipt-area {
             position: fixed !important;
@@ -447,16 +450,20 @@ function A4SalesInvoiceBody({
     invoice.warrantyUntil || invoice.lines.some((l) => l.warranty_days && l.warranty_days > 0);
 
   return (
-    <div className="bg-white border-0 shadow-none p-6 sm:p-8 rounded-none max-w-3xl mx-auto space-y-5 sm:space-y-6 text-slate-900 font-sans a4-sheet-page">
+    <div className="bg-white border-0 shadow-none p-6 sm:p-8 print:p-4 max-w-3xl mx-auto space-y-4 sm:space-y-5 print:space-y-3.5 text-slate-900 font-sans a4-sheet-page">
       {/* 1. STORE HEADER & LOGO */}
-      <div className="flex justify-between items-start pb-4 border-b-2 border-slate-900 gap-4">
+      <div className="flex justify-between items-start pb-3.5 border-b-2 border-slate-900 gap-4">
         <div className="space-y-1">
           <h1 className="font-black text-xl sm:text-2xl tracking-tight text-slate-900">
             {businessName.toUpperCase()}
           </h1>
-          <p className="text-xs text-slate-700 font-medium">{addressLine}</p>
-          <p className="text-xs text-slate-700 font-medium">Tel: {phone} | Mob: +44 7491 248770</p>
-          <p className="text-xs text-slate-600 font-mono">{email} | www.prescotmobiles.co.uk</p>
+          <p className="text-xs sm:text-sm text-slate-700 font-medium">{addressLine}</p>
+          <p className="text-xs sm:text-sm text-slate-700 font-medium">
+            Tel: {phone} | Mob: +44 7491 248770
+          </p>
+          <p className="text-xs sm:text-sm text-slate-600 font-mono">
+            {email} | www.prescotmobiles.co.uk
+          </p>
           {vatRegistered && vatNumber && (
             <p className="text-xs font-bold text-slate-800">VAT Reg: {vatNumber}</p>
           )}
@@ -466,7 +473,7 @@ function A4SalesInvoiceBody({
           <img
             src="/site-assets/prescot-logo.png"
             alt="Prescot Mobile Shop Logo"
-            className="h-28 sm:h-36 max-w-[260px] w-auto object-contain"
+            className="h-26 sm:h-30 print:h-24 max-w-[260px] w-auto object-contain"
             onError={(e) => {
               (e.currentTarget as HTMLElement).style.display = "none";
             }}
@@ -475,10 +482,10 @@ function A4SalesInvoiceBody({
       </div>
 
       {/* 2. DOCUMENT TITLE & INFO BAR */}
-      <div className="flex items-center justify-between gap-2 pt-1 font-mono text-xs border-b border-slate-300 pb-3">
+      <div className="flex items-center justify-between gap-2 pt-1 font-mono text-xs sm:text-sm border-b border-slate-300 pb-2.5">
         <div className="flex items-center gap-2">
           <span className="font-bold text-slate-600">INVOICE NO:</span>
-          <span className="font-extrabold text-sm text-brand">{invoice.number}</span>
+          <span className="font-extrabold text-sm sm:text-base text-brand">{invoice.number}</span>
         </div>
         <div className="text-center font-black text-sm sm:text-base tracking-widest text-slate-900 uppercase">
           SALES INVOICE / RECEIPT
@@ -490,7 +497,7 @@ function A4SalesInvoiceBody({
       </div>
 
       {/* 3. CUSTOMER DETAILS BOX */}
-      <div className="bg-slate-50 border-0 rounded-xl p-4 space-y-1.5 text-xs">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-1.5 text-xs sm:text-sm">
         <div className="font-bold text-[10px] text-slate-500 uppercase tracking-wider underline mb-1">
           CUSTOMER DETAILS
         </div>
@@ -511,40 +518,40 @@ function A4SalesInvoiceBody({
       </div>
 
       {/* 4. ITEMS TABLE */}
-      <div className="bg-slate-50/50 border-0 rounded-xl p-4 space-y-3 text-xs">
-        <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-wider block">
+      <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-2.5 text-xs sm:text-sm">
+        <span className="font-extrabold text-[10px] text-slate-900 uppercase tracking-wider block">
           PURCHASED ITEMS SUMMARY:
         </span>
         <table className="w-full text-left text-xs border border-slate-300 rounded-md overflow-hidden">
           <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
             <tr>
-              <th className="py-2 px-3">Item / Service Description</th>
-              <th className="py-2 px-3 text-center w-16">Qty</th>
-              <th className="py-2 px-3 text-right w-24">Unit Price</th>
-              <th className="py-2 px-3 text-right w-24">Total</th>
+              <th className="py-1.5 px-3">Item / Service Description</th>
+              <th className="py-1.5 px-3 text-center w-16">Qty</th>
+              <th className="py-1.5 px-3 text-right w-24">Unit Price</th>
+              <th className="py-1.5 px-3 text-right w-24">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {invoice.lines.map((l, i) => (
               <tr key={i}>
-                <td className="py-2 px-3 font-semibold text-slate-900">{l.name}</td>
-                <td className="py-2 px-3 text-center font-mono font-bold text-slate-700">
+                <td className="py-1.5 px-3 font-semibold text-slate-900">{l.name}</td>
+                <td className="py-1.5 px-3 text-center font-mono font-bold text-slate-700">
                   {l.quantity}
                 </td>
-                <td className="py-2 px-3 text-right font-mono text-slate-700">
+                <td className="py-1.5 px-3 text-right font-mono text-slate-700">
                   {formatGBP(l.unit_price)}
                 </td>
-                <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
                   {formatGBP(l.total)}
                 </td>
               </tr>
             ))}
             {invoice.labour && invoice.labour > 0 ? (
               <tr className="font-bold text-slate-900">
-                <td className="py-2 px-3" colSpan={3}>
+                <td className="py-1.5 px-3" colSpan={3}>
                   Labour / Service Charge
                 </td>
-                <td className="py-2 px-3 text-right font-mono">{formatGBP(invoice.labour)}</td>
+                <td className="py-1.5 px-3 text-right font-mono">{formatGBP(invoice.labour)}</td>
               </tr>
             ) : null}
           </tbody>
@@ -554,17 +561,17 @@ function A4SalesInvoiceBody({
         <div className="flex justify-between items-end pt-2 border-t border-slate-300">
           <div>
             {isPaidInFull ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-xs uppercase tracking-wider">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-xs uppercase tracking-wider">
                 <CheckCircle2 className="w-4 h-4 text-emerald-700" /> PAID IN FULL
               </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs uppercase tracking-wider">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs uppercase tracking-wider">
                 PAYMENT PENDING
               </div>
             )}
           </div>
 
-          <div className="w-56 space-y-1 text-xs font-mono">
+          <div className="w-56 space-y-0.5 text-xs font-mono">
             <div className="flex justify-between text-slate-700">
               <span>SUBTOTAL:</span>
               <span className="font-bold">{formatGBP(subtotal)}</span>
@@ -577,7 +584,7 @@ function A4SalesInvoiceBody({
               </div>
             )}
 
-            <div className="flex justify-between text-slate-900 font-black border-t border-slate-300 pt-1 text-sm">
+            <div className="flex justify-between text-slate-900 font-black border-t border-slate-300 pt-0.5 text-sm">
               <span>TOTAL:</span>
               <span>{formatGBP(grandTotal)}</span>
             </div>
@@ -594,7 +601,7 @@ function A4SalesInvoiceBody({
               <span className="font-bold">{formatGBP(amountPaid)}</span>
             </div>
 
-            <div className="flex justify-between font-extrabold text-sm border-t border-slate-400 pt-1 text-slate-900">
+            <div className="flex justify-between font-extrabold text-sm border-t border-slate-400 pt-0.5 text-slate-900">
               <span>BALANCE DUE:</span>
               <span className={balanceDue > 0 ? "text-brand" : "text-emerald-700"}>
                 {formatGBP(balanceDue)}
@@ -606,7 +613,7 @@ function A4SalesInvoiceBody({
 
       {/* 5. WARRANTY NOTES SECTION (IF APPLICABLE) */}
       {hasWarrantyNotes && (
-        <div className="bg-slate-50 border-0 rounded-xl p-3.5 text-[9.5px] leading-relaxed text-slate-700 space-y-1">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[9px] sm:text-[9.5px] leading-snug text-slate-700 space-y-1">
           <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-0.5 mb-1 flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-brand" /> WARRANTY COVERAGE NOTES
           </div>
@@ -631,7 +638,7 @@ function A4SalesInvoiceBody({
       {/* 6. TWO-COLUMN FOOTER: STORE POLICY & GOOGLE REVIEW QR */}
       <div className="pt-2 border-t border-slate-200 flex flex-row items-center justify-between gap-4">
         {/* Left Column: Store Disclaimer & Website Link */}
-        <div className="text-left text-[10px] text-slate-700 font-medium space-y-0.5">
+        <div className="text-left text-[10px] text-slate-700 font-medium space-y-1">
           <p className="font-bold text-slate-900 text-xs">
             Thank you for choosing Prescot Mobiles!
           </p>
@@ -641,7 +648,7 @@ function A4SalesInvoiceBody({
           <p className="text-[9.5px] text-slate-500 italic">
             Keep this invoice as official proof of purchase.
           </p>
-          <div className="pt-1">
+          <div className="pt-0.5">
             <a
               href="https://www.prescotmobiles.co.uk"
               target="_blank"
@@ -655,21 +662,23 @@ function A4SalesInvoiceBody({
         </div>
 
         {/* Right Column: Google Review QR Code Block */}
-        <div className="flex flex-col items-center justify-center text-center space-y-0.5 shrink-0 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-          <span className="font-extrabold text-[8.5px] uppercase tracking-wider text-slate-800">
-            SHARE YOUR EXPERIENCE
-          </span>
+        <div className="flex flex-row items-center gap-3 shrink-0 bg-slate-50 p-2 rounded-xl border border-slate-200">
           <img
             src="/site-assets/google-review-qr.png"
             alt="Scan to leave Prescot Mobiles a Google review"
-            className="w-[80px] h-[80px] object-contain bg-white p-0.5 rounded border border-slate-200 aspect-square"
+            className="w-[82px] h-[82px] object-contain bg-white p-1 rounded-lg border border-slate-200 aspect-square shadow-2xs"
             onError={(e) => {
               (e.currentTarget as HTMLElement).style.display = "none";
             }}
           />
-          <span className="text-[8px] font-semibold text-slate-600">
-            Scan to leave us a review on Google
-          </span>
+          <div className="text-left">
+            <span className="font-extrabold text-[9.5px] uppercase tracking-wider text-slate-800 block">
+              SHARE YOUR EXPERIENCE
+            </span>
+            <span className="text-[8.5px] font-semibold text-slate-600 block leading-snug mt-0.5 max-w-[120px]">
+              Scan QR code to review us on Google
+            </span>
+          </div>
         </div>
       </div>
     </div>
