@@ -48,7 +48,7 @@ const buyPhoneSchema = z.object({
 
 const sellPhoneSchema = z.object({
   idempotency_key: z.string().min(1),
-  phone_unit_id: z.string().uuid(),
+  phone_unit_id: z.string().uuid().optional().nullable(),
   buyer_customer_id: z.string().uuid().optional().nullable(),
   shift_id: z.string().uuid().optional().nullable(),
   selling_price_pence: z.number().int().nonnegative(),
@@ -57,6 +57,20 @@ const sellPhoneSchema = z.object({
   warranty_days: z.number().int().nonnegative().optional().nullable(),
   warranty_policy_text: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+
+  // Direct phone sale parameters (when phone_unit_id is null)
+  brand: z.string().optional().nullable(),
+  model: z.string().optional().nullable(),
+  storage: z.string().optional().nullable(),
+  colour: z.string().optional().nullable(),
+  imei1: z.string().optional().nullable(),
+  imei2: z.string().optional().nullable(),
+  serial_number: z.string().optional().nullable(),
+  condition_grade: z.string().optional().nullable(),
+  condition_notes: z.string().optional().nullable(),
+  battery_health: z.string().optional().nullable(),
+  network_status: z.string().optional().nullable(),
+  cost_price_pence: z.number().int().nonnegative().optional().nullable(),
 });
 
 const listPhoneUnitsSchema = z.object({
@@ -117,7 +131,7 @@ export const sellPhone = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: result, error } = await (context.supabase as any).rpc("sell_phone", {
       p_idempotency_key: data.idempotency_key,
-      p_phone_unit_id: data.phone_unit_id,
+      p_phone_unit_id: data.phone_unit_id ?? null,
       p_buyer_customer_id: data.buyer_customer_id ?? null,
       p_shift_id: data.shift_id ?? null,
       p_selling_price_pence: data.selling_price_pence,
@@ -126,6 +140,18 @@ export const sellPhone = createServerFn({ method: "POST" })
       p_warranty_days: data.warranty_days ?? null,
       p_warranty_policy_text: data.warranty_policy_text ?? null,
       p_notes: data.notes ?? null,
+      p_brand: data.brand ?? null,
+      p_model: data.model ?? null,
+      p_storage: data.storage ?? null,
+      p_colour: data.colour ?? null,
+      p_imei1: data.imei1 ?? null,
+      p_imei2: data.imei2 ?? null,
+      p_serial_number: data.serial_number ?? null,
+      p_condition_grade: data.condition_grade ?? 'Good',
+      p_condition_notes: data.condition_notes ?? null,
+      p_battery_health: data.battery_health ?? null,
+      p_network_status: data.network_status ?? null,
+      p_cost_price_pence: data.cost_price_pence ?? null,
     });
     if (error) throw new Error(error.message);
     return result as {

@@ -179,7 +179,7 @@ function PhoneBuySellPage() {
             />
           </div>
           <p className="db-page-subtitle">
-            Track individual pre-owned handsets — buy, sell, IMEI, condition, warranty & receipts.
+            Buy, sell and track pre-owned phones by IMEI, condition and transaction history.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ function PhoneBuySellPage() {
       {/* Table */}
       {isLoading ? (
         <div className="db-card p-4">
-          <TableSkeleton rows={6} cols={7} />
+          <TableSkeleton rows={6} cols={8} />
         </div>
       ) : data ? (
         <div className="db-card !p-0 overflow-hidden">
@@ -259,11 +259,11 @@ function PhoneBuySellPage() {
                 <tr>
                   <th className="db-th">Stock #</th>
                   <th className="db-th">Device</th>
-                  <th className="db-th">IMEI 1</th>
+                  <th className="db-th">IMEI</th>
                   <th className="db-th">Condition</th>
-                  <th className="db-th text-right">Cost</th>
+                  <th className="db-th text-right">Purchase Cost</th>
                   <th className="db-th">Status</th>
-                  <th className="db-th">Date</th>
+                  <th className="db-th">Purchased</th>
                   <th className="db-th text-right">Actions</th>
                 </tr>
               </thead>
@@ -308,7 +308,7 @@ function PhoneBuySellPage() {
                         </span>
                       </td>
                       <td className="db-td text-[11px] text-muted-foreground">
-                        {isSold ? formatDate(u.sold_at) : formatDate(u.purchased_at)}
+                        {formatDate(u.purchased_at)}
                       </td>
                       <td className="db-td text-right">
                         <div className="flex items-center justify-end gap-1">

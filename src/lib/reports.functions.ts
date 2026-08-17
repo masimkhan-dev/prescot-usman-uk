@@ -90,6 +90,16 @@ export const getReports = createServerFn({ method: "GET" })
       0,
     );
 
+    const unknownCostItemsCount = (cogsRows ?? []).reduce(
+      (s, r) => s + (Number(r.unknown_cost_items_count) || 0),
+      0,
+    );
+    const unknownCostRevenuePence = (cogsRows ?? []).reduce(
+      (s, r) => s + (Number(r.unknown_cost_revenue_pence) || 0),
+      0,
+    );
+    const isMarginPending = unknownCostItemsCount > 0;
+
     // Phone buy/sell summary — informational breakdown only.
     // Phone sales revenue/COGS are ALREADY included in grossRevenuePence/cogsPence above
     // via existing sale_items records. This panel is a breakdown, NOT an addition.
@@ -110,6 +120,9 @@ export const getReports = createServerFn({ method: "GET" })
       repairRevenuePence,
       expensesTotalPence,
       netProfitPence,
+      unknownCostItemsCount,
+      unknownCostRevenuePence,
+      isMarginPending,
       // Payment breakdown
       cashPence,
       cardPence,
@@ -136,6 +149,11 @@ export const getReports = createServerFn({ method: "GET" })
         sold_revenue_pence: 0,
         sold_cogs_pence: 0,
         gross_margin_pence: 0,
+        direct_sales_count: 0,
+        direct_sales_revenue_pence: 0,
+        direct_sales_unknown_cost_count: 0,
+        direct_sales_unknown_cost_revenue_pence: 0,
+        is_margin_pending: false,
       },
     };
   });

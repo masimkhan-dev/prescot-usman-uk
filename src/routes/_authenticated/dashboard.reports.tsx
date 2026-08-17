@@ -199,7 +199,9 @@ function ReportsPage() {
           {
             label: "Cost of Goods Sold",
             value: formatGBP(data.cogsPence / 100),
-            sub: `Gross Margin: ${formatGBP(data.grossProfitPence / 100)}`,
+            sub: data.isMarginPending
+              ? `Gross Margin: ${formatGBP(data.grossProfitPence / 100)} (⚠️ Cost pending on ${data.unknownCostItemsCount} item${data.unknownCostItemsCount > 1 ? "s" : ""})`
+              : `Gross Margin: ${formatGBP(data.grossProfitPence / 100)}`,
             color: "text-amber-700",
           },
           {
@@ -317,18 +319,23 @@ function ReportsPage() {
         <div className="db-card space-y-3">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4 text-brand" />
-            <h2 className="db-card-title">Phone Buy & Sell — Stock Overview</h2>
+            <h2 className="db-card-title">Phone Buy & Sell — Sales & Stock Overview</h2>
           </div>
           <p className="text-[11px] text-muted-foreground">
             Informational breakdown only. Phone revenue and COGS are already included in the overall Sales Revenue and P&amp;L figures above — they are not added again here.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               { label: "In Stock", value: String(data.phoneSummary.units_in_stock ?? 0) + " units" },
-              { label: "Sold", value: String(data.phoneSummary.units_sold ?? 0) + " units" },
+              {
+                label: "Phones Sold",
+                value: `${data.phoneSummary.units_sold ?? 0} units${
+                  data.phoneSummary.direct_sales_count ? ` (${data.phoneSummary.direct_sales_count} direct)` : ""
+                }`,
+              },
               { label: "Stock Cost Value", value: formatGBP((data.phoneSummary.stock_cost_value_pence ?? 0) / 100) },
               { label: "Phone Revenue (sold)", value: formatGBP((data.phoneSummary.sold_revenue_pence ?? 0) / 100) },
-              { label: "Phone COGS (sold)", value: formatGBP((data.phoneSummary.sold_cogs_pence ?? 0) / 100) },
+              { label: "Phone COGS (known)", value: formatGBP((data.phoneSummary.sold_cogs_pence ?? 0) / 100) },
               {
                 label: "Phone Gross Margin",
                 value: formatGBP((data.phoneSummary.gross_margin_pence ?? 0) / 100),
@@ -340,6 +347,11 @@ function ReportsPage() {
               </div>
             ))}
           </div>
+          {data.phoneSummary.direct_sales_unknown_cost_count > 0 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 font-medium">
+              ⚠️ Note: Includes {data.phoneSummary.direct_sales_unknown_cost_count} direct phone sale(s) with unrecorded cost (Revenue: {formatGBP(data.phoneSummary.direct_sales_unknown_cost_revenue_pence / 100)}). Margin shown is computed on units with known purchase costs only.
+            </p>
+          )}
         </div>
       )}
     </div>

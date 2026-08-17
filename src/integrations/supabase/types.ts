@@ -748,6 +748,24 @@ export type Database = {
         cogs_pence: number;
         revenue_pence: number;
         gross_profit_pence: number;
+        unknown_cost_items_count?: number;
+        unknown_cost_revenue_pence?: number;
+        is_margin_pending?: boolean;
+      }>;
+      v_phone_units_summary: View<{
+        units_in_stock: number;
+        units_sold: number;
+        units_total: number;
+        stock_cost_value_pence: number;
+        total_purchased_pence: number;
+        sold_revenue_pence: number;
+        sold_cogs_pence: number;
+        gross_margin_pence: number;
+        direct_sales_count?: number;
+        direct_sales_revenue_pence?: number;
+        direct_sales_unknown_cost_count?: number;
+        direct_sales_unknown_cost_revenue_pence?: number;
+        is_margin_pending?: boolean;
       }>;
       v_repair_revenue: View<{
         repair_id: string;
