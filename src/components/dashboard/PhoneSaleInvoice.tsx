@@ -13,6 +13,7 @@ interface DeviceSnapshot {
   condition_notes?: string | null;
   battery_health?: string | null;
   network_status?: string | null;
+  face_id_status?: string | null;
   activation_lock_status?: string | null;
   accessories?: string | null;
   stock_number?: string | null;
@@ -304,6 +305,11 @@ export function PhoneSaleInvoiceModal({
                       <span className="font-extrabold text-slate-900 text-xs sm:text-sm block">
                         {conditionLabel}
                       </span>
+                      {dev.face_id_status && (dev.face_id_status === "working" || dev.face_id_status === "not_working" || dev.face_id_status === "Working" || dev.face_id_status === "Not Working") && (
+                        <span className="block text-xs text-slate-600 font-medium">
+                          Face ID: {dev.face_id_status.toLowerCase().includes("not") ? "Not Working" : "Working"}
+                        </span>
+                      )}
                       {batteryHealth && (
                         <span className="block text-xs text-slate-600 font-medium">Battery: {batteryHealth}</span>
                       )}
