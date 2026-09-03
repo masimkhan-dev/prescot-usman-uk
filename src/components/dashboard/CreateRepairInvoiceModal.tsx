@@ -1,21 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { createQuickRepairInvoice, listWarrantyTemplates } from "@/lib/repairs.functions";
+import { createQuickRepairInvoice } from "@/lib/repairs.functions";
 import {
   X,
   Plus,
   Trash2,
   Loader2,
-  Zap,
   Banknote,
   CreditCard,
   Building2,
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
-  ShieldCheck,
   Search,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -129,13 +126,16 @@ const REPAIR_TYPES: string[] = [
   "Other Repair",
 ];
 
-// ── Types ───────────────────────────────────────────────────────────────────
+// ── Default warranty terms text ──────────────────────────────────────────────
+const DEFAULT_WARRANTY_TERMS =
+  "Covers the parts fitted and workmanship for this repair during the warranty period. Physical damage, liquid damage and faults unrelated to this repair are not covered.";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 interface RepairItem {
   description: string;
   price: string;           // pounds string for input
-  warranty_days: string;   // blank = not specified
-  warranty_policy: string; // editable policy text
-  template_id: string;     // "" = none/manual
+  warranty_days: string;   // blank = Not Specified; "0" = No Warranty
+  warranty_policy: string; // freely editable warranty terms
 }
 
 interface CreateRepairInvoiceModalProps {
@@ -144,14 +144,21 @@ interface CreateRepairInvoiceModalProps {
   onSuccess: (repair: any) => void;
 }
 
-// Blank by default — no hidden 90-day assumption
+// Blank by default — warranty_days empty so staff must consciously enter
 const BLANK_ITEM: RepairItem = {
   description: "",
   price: "",
   warranty_days: "",
-  warranty_policy: "",
-  template_id: "",
+  warranty_policy: DEFAULT_WARRANTY_TERMS,
 };
+
+// ── Shared style tokens ──────────────────────────────────────────────────────
+const inp =
+  "w-full px-3 h-[38px] border border-slate-200 rounded-lg text-[13px] text-slate-900 bg-white " +
+  "focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 placeholder:text-slate-400 " +
+  "transition-colors";
+const lbl = "block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1";
+const sectionTitle = "text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3";
 
 // ── SearchableCombobox ───────────────────────────────────────────────────────
 interface SearchableComboboxProps {
@@ -160,7 +167,6 @@ interface SearchableComboboxProps {
   options: string[];
   placeholder?: string;
   autoFocus?: boolean;
-  className?: string;
 }
 
 function SearchableCombobox({
@@ -169,24 +175,18 @@ function SearchableCombobox({
   options,
   placeholder = "Type or select…",
   autoFocus = false,
-  className = "",
 }: SearchableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keep query in sync when value changes externally (e.g. form reset)
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
+  useEffect(() => { setQuery(value); }, [value]);
 
-  // Close on outside click
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        // Commit whatever is typed
         onChange(query.trim());
       }
     }
@@ -198,32 +198,8 @@ function SearchableCombobox({
     ? options.filter((o) => o.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setQuery(e.target.value);
-    onChange(e.target.value);
-    setOpen(true);
-  }
-
-  function handleSelect(option: string) {
-    setQuery(option);
-    onChange(option);
-    setOpen(false);
-    inputRef.current?.blur();
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Escape") {
-      setOpen(false);
-      onChange(query.trim());
-    }
-    if (e.key === "Enter") {
-      // Let form submit handle it — just close dropdown
-      setOpen(false);
-    }
-  }
-
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className="relative">
       <div className="relative">
         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         <input
@@ -231,11 +207,14 @@ function SearchableCombobox({
           type="text"
           value={query}
           autoFocus={autoFocus}
-          onChange={handleInputChange}
+          onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setOpen(false); onChange(query.trim()); }
+            if (e.key === "Enter") setOpen(false);
+          }}
           placeholder={placeholder}
-          className="w-full pl-9 pr-8 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-sm font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-all placeholder:text-slate-400 placeholder:font-normal"
+          className={inp + " pl-9 pr-8 font-medium"}
         />
         <button
           type="button"
@@ -246,18 +225,19 @@ function SearchableCombobox({
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
-
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-52 overflow-y-auto">
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-52 overflow-y-auto">
           {filtered.slice(0, 60).map((option) => (
             <button
               key={option}
               type="button"
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
-              className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-brand/10 hover:text-brand transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
-                option === query
-                  ? "bg-brand/10 text-brand font-bold"
-                  : "text-slate-800 dark:text-slate-200"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setQuery(option); onChange(option); setOpen(false);
+                inputRef.current?.blur();
+              }}
+              className={`w-full text-left px-3 py-2 text-[12px] font-medium hover:bg-brand/5 hover:text-brand transition-colors border-b border-slate-50 last:border-0 ${
+                option === query ? "bg-brand/5 text-brand font-semibold" : "text-slate-800"
               }`}
             >
               {option}
@@ -266,10 +246,13 @@ function SearchableCombobox({
           {query.trim() && !options.some((o) => o.toLowerCase() === query.trim().toLowerCase()) && (
             <button
               type="button"
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(query.trim()); }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-500 italic hover:bg-slate-50 dark:hover:bg-slate-800 border-t border-slate-200 dark:border-slate-700"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setQuery(query.trim()); onChange(query.trim()); setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-[12px] text-slate-500 italic hover:bg-slate-50 border-t border-slate-200"
             >
-              ✏️ Use "{query.trim()}" (manual entry)
+              Use &ldquo;{query.trim()}&rdquo; as custom entry
             </button>
           )}
         </div>
@@ -278,77 +261,53 @@ function SearchableCombobox({
   );
 }
 
-// ── Component ───────────────────────────────────────────────────────────────
+// ── Component ────────────────────────────────────────────────────────────────
 export function CreateRepairInvoiceModal({
   isOpen,
   onClose,
   onSuccess,
 }: CreateRepairInvoiceModalProps) {
   const createFn = useServerFn(createQuickRepairInvoice);
-  const templatesFn = useServerFn(listWarrantyTemplates);
 
-  // Fetch warranty templates (cached)
-  const { data: templates = [] } = useQuery({
-    queryKey: ["warranty-templates"],
-    queryFn: () => templatesFn(),
-    staleTime: 1000 * 60 * 5,
-    enabled: isOpen,
-  });
-
-  // ── Form state ─────────────────────────────────────────────────────────
+  // ── Form state ──────────────────────────────────────────────────────────
   const [deviceModel, setDeviceModel] = useState("");
-  const [items, setItems] = useState<RepairItem[]>([{ ...BLANK_ITEM }]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerImei, setCustomerImei] = useState("");
+  const [items, setItems] = useState<RepairItem[]>([{ ...BLANK_ITEM }]);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer">("cash");
   const [isPaid, setIsPaid] = useState(true);
   const [notes, setNotes] = useState("");
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitAndPrint, setSubmitAndPrint] = useState(false);
 
   if (!isOpen) return null;
 
-  // ── Derived ─────────────────────────────────────────────────────────────
+  // ── Derived ──────────────────────────────────────────────────────────────
   const totalPounds = items.reduce((acc, i) => acc + (parseFloat(i.price) || 0), 0);
 
-  // ── Item helpers ────────────────────────────────────────────────────────
+  // ── Item helpers ─────────────────────────────────────────────────────────
   function addItem() {
     setItems((prev) => [...prev, { ...BLANK_ITEM }]);
   }
-
   function removeItem(idx: number) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   }
-
   function updateItem(idx: number, patch: Partial<RepairItem>) {
     setItems((prev) => prev.map((item, i) => (i === idx ? { ...item, ...patch } : item)));
-  }
-
-  // When a template is selected → copy days + policy into the item.
-  // The template itself is NOT mutated — just a starting point.
-  function applyTemplate(idx: number, templateId: string) {
-    const tmpl = (templates as any[]).find((t) => t.id === templateId);
-    if (!tmpl) {
-      updateItem(idx, { template_id: "" });
-      return;
-    }
-    updateItem(idx, {
-      template_id: templateId,
-      warranty_days: String(tmpl.default_days ?? ""),
-      warranty_policy: tmpl.policy_text ?? "",
-    });
   }
 
   // ── Reset ────────────────────────────────────────────────────────────────
   function resetForm() {
     setDeviceModel("");
-    setItems([{ ...BLANK_ITEM }]);
     setCustomerName("");
     setCustomerPhone("");
+    setCustomerImei("");
+    setItems([{ ...BLANK_ITEM }]);
     setPaymentMethod("cash");
     setIsPaid(true);
     setNotes("");
-    setShowMoreDetails(false);
+    setSubmitAndPrint(false);
   }
 
   function handleClose() {
@@ -357,14 +316,13 @@ export function CreateRepairInvoiceModal({
   }
 
   // ── Submit ───────────────────────────────────────────────────────────────
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, printAfter = false) {
     e.preventDefault();
 
     if (!deviceModel.trim()) {
       toast.error("Device / Model is required");
       return;
     }
-
     const validItems = items.filter((i) => i.description.trim() && parseFloat(i.price) > 0);
     if (validItems.length === 0) {
       toast.error("At least one repair item with a price > 0 is required");
@@ -372,6 +330,7 @@ export function CreateRepairInvoiceModal({
     }
 
     setSubmitting(true);
+    setSubmitAndPrint(printAfter);
     try {
       const repair = await createFn({
         data: {
@@ -381,7 +340,6 @@ export function CreateRepairInvoiceModal({
             return {
               description: i.description.trim(),
               price_pence: Math.round(parseFloat(i.price) * 100),
-              // NULL = not specified; 0 = no warranty; N = N days
               warranty_days: i.warranty_days.trim() === "" ? null : isNaN(daysInt) ? null : daysInt,
               warranty_policy_text: i.warranty_policy.trim() || null,
             };
@@ -406,371 +364,379 @@ export function CreateRepairInvoiceModal({
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg my-3 sm:my-auto border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-150">
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 bg-slate-900 text-white rounded-t-2xl">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span className="font-extrabold text-sm tracking-tight">Create Repair Invoice</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <div className="fixed inset-0 z-50 bg-[#f5f5f4] flex flex-col" style={{ height: "100dvh" }}>
+
+      {/* ── TOP HEADER BAR ──────────────────────────────────────────────── */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200">
+        <div>
+          <h1 className="text-[15px] font-bold text-slate-900 leading-tight">Create Repair Invoice</h1>
+          <p className="text-[12px] text-slate-400 mt-0.5">
+            New repair · All repairs are counter-finalized on save
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* ── Device / Model ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Device / Model <span className="text-rose-500">*</span>
-              <span className="ml-1 font-normal text-slate-400">(select or type freely)</span>
-            </label>
-            <SearchableCombobox
-              value={deviceModel}
-              onChange={setDeviceModel}
-              options={DEVICE_MODELS}
-              placeholder="e.g. iPhone 13 Pro, Samsung S24 Ultra…"
-              autoFocus
-            />
-          </div>
+      {/* ── THREE-COLUMN BODY ────────────────────────────────────────────── */}
+      <div
+        className="flex-1 min-h-0 grid"
+        style={{
+          gridTemplateColumns: "minmax(240px, 0.8fr) minmax(420px, 1.8fr) minmax(280px, 1fr)",
+        }}
+      >
+        {/* ── LEFT: CUSTOMER & DEVICE ─────────────────────────────────── */}
+        <div className="border-r border-slate-200 bg-white overflow-y-auto px-4 py-5">
+          <p className={sectionTitle}>Customer &amp; Device</p>
 
-          {/* ── Repair Items ── */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-              Repair / Work <span className="text-rose-500">*</span>
-            </label>
-
-            <div className="space-y-3">
-              {items.map((item, idx) => (
-                <RepairItemRow
-                  key={idx}
-                  item={item}
-                  idx={idx}
-                  templates={templates as any[]}
-                  canRemove={items.length > 1}
-                  onUpdate={(patch) => updateItem(idx, patch)}
-                  onApplyTemplate={(tid) => applyTemplate(idx, tid)}
-                  onRemove={() => removeItem(idx)}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={addItem}
-              className="mt-2.5 w-full py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-500 hover:border-brand hover:text-brand hover:bg-brand/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Another Item
-            </button>
-          </div>
-
-          {/* ── Customer (Optional) ── */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                Customer — Optional
-              </span>
-              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-3">
+            <div>
+              <label className={lbl}>Customer name</label>
               <input
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Name"
-                className="px-3 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 placeholder:text-slate-400 placeholder:font-normal"
+                placeholder="Optional"
+                className={inp}
               />
+            </div>
+            <div>
+              <label className={lbl}>Phone</label>
               <input
                 type="tel"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="Phone"
-                className="px-3 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 placeholder:text-slate-400 placeholder:font-normal"
+                placeholder="Optional"
+                className={inp}
+              />
+            </div>
+
+            <div className="pt-1 border-t border-slate-100" />
+
+            <div>
+              <label className={lbl}>
+                Device / Model <span className="text-red-500">*</span>
+              </label>
+              <SearchableCombobox
+                value={deviceModel}
+                onChange={setDeviceModel}
+                options={DEVICE_MODELS}
+                placeholder="e.g. iPhone 14, Galaxy S24…"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className={lbl}>IMEI / Serial <span className="text-slate-300 font-normal">(optional)</span></label>
+              <input
+                type="text"
+                value={customerImei}
+                onChange={(e) => setCustomerImei(e.target.value)}
+                placeholder="15-digit IMEI or serial"
+                className={inp + " font-mono"}
               />
             </div>
           </div>
+        </div>
 
-          {/* ── Payment ── */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                Payment
-              </span>
-              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        {/* ── CENTRE: REPAIR ITEMS ─────────────────────────────────────── */}
+        <div className="border-r border-slate-200 bg-[#f5f5f4] overflow-y-auto px-5 py-5 flex flex-col">
+          <p className={sectionTitle}>Repair Items</p>
+
+          <div className="space-y-3 flex-1">
+            {items.map((item, idx) => (
+              <RepairItemCard
+                key={idx}
+                item={item}
+                idx={idx}
+                isOnly={items.length === 1}
+                onUpdate={(patch) => updateItem(idx, patch)}
+                onRemove={() => removeItem(idx)}
+              />
+            ))}
+          </div>
+
+          {/* Add another item */}
+          <button
+            type="button"
+            onClick={addItem}
+            className="mt-3 w-full py-2.5 border border-dashed border-slate-300 rounded-lg text-[12px] font-semibold text-slate-500 hover:border-brand hover:text-brand hover:bg-brand/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Another Repair
+          </button>
+        </div>
+
+        {/* ── RIGHT: INVOICE SUMMARY ───────────────────────────────────── */}
+        <div className="bg-white overflow-y-auto flex flex-col">
+          <form
+            onSubmit={(e) => handleSubmit(e, false)}
+            className="flex flex-col h-full px-4 py-5"
+          >
+            <p className={sectionTitle}>Invoice Summary</p>
+
+            {/* Live repairs list */}
+            <div className="space-y-1 mb-3">
+              {items.map((item, idx) => {
+                const price = parseFloat(item.price) || 0;
+                return (
+                  <div key={idx} className="flex items-baseline justify-between gap-2">
+                    <span className="text-[12px] text-slate-600 truncate flex-1 min-w-0">
+                      {item.description || `Repair ${idx + 1}`}
+                    </span>
+                    <span className="text-[12px] font-semibold text-slate-900 font-mono shrink-0 tabular-nums">
+                      {price > 0 ? `£${price.toFixed(2)}` : "—"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Method buttons */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {(
-                [
-                  { id: "cash", label: "Cash", Icon: Banknote, color: "text-emerald-500" },
-                  { id: "card", label: "Card", Icon: CreditCard, color: "text-sky-500" },
-                  { id: "bank_transfer", label: "Bank", Icon: Building2, color: "text-amber-500" },
-                ] as const
-              ).map(({ id, label, Icon, color }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setPaymentMethod(id)}
-                  className={`py-2 px-3 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    paymentMethod === id
-                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${paymentMethod === id ? "text-white" : color}`} />
-                  {label}
-                </button>
-              ))}
+            {/* Totals */}
+            <div className="border-t border-slate-200 pt-2 mb-4">
+              <div className="flex justify-between items-baseline">
+                <span className="text-[12px] font-semibold text-slate-500">Subtotal</span>
+                <span className="text-[12px] font-semibold text-slate-900 font-mono tabular-nums">
+                  £{totalPounds.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-slate-200">
+                <span className="text-[14px] font-bold text-slate-900">Total</span>
+                <span className="text-[20px] font-black text-slate-900 font-mono tabular-nums tracking-tight">
+                  £{totalPounds.toFixed(2)}
+                </span>
+              </div>
             </div>
 
-            {/* Paid in Full toggle — default ON */}
+            {/* Payment method */}
+            <div className="mb-3">
+              <p className={lbl}>Payment</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(
+                  [
+                    { id: "cash", label: "Cash", Icon: Banknote },
+                    { id: "card", label: "Card", Icon: CreditCard },
+                    { id: "bank_transfer", label: "Bank", Icon: Building2 },
+                  ] as const
+                ).map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setPaymentMethod(id)}
+                    className={`h-[36px] flex items-center justify-center gap-1 text-[11px] font-semibold rounded-lg border transition-all cursor-pointer ${
+                      paymentMethod === id
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-400"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Paid in Full */}
             <button
               type="button"
               onClick={() => setIsPaid((p) => !p)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border-2 transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 transition-all cursor-pointer mb-3 ${
                 isPaid
-                  ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
-                  : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"
+                  ? "border-emerald-400 bg-emerald-50"
+                  : "border-slate-200 bg-white"
               }`}
             >
-              <span
-                className={`text-xs font-extrabold ${isPaid ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}
-              >
+              <span className={`text-[12px] font-semibold ${isPaid ? "text-emerald-700" : "text-slate-500"}`}>
                 Paid in Full
               </span>
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                  isPaid
-                    ? "bg-emerald-600 border-emerald-600"
-                    : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                  isPaid ? "bg-emerald-500 border-emerald-500" : "bg-white border-slate-300"
                 }`}
               >
                 {isPaid && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
               </div>
             </button>
-          </div>
 
-          {/* ── More Details (collapsible) ── */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowMoreDetails((v) => !v)}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer py-1"
-            >
-              {showMoreDetails ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-              More Details
-            </button>
-
-            {showMoreDetails && (
-              <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Internal notes for this repair..."
-                  rows={2}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none placeholder:text-slate-400"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ── Total + Submit ── */}
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Total</span>
-              <span className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
-                £{totalPounds.toFixed(2)}
-              </span>
+            {/* Notes */}
+            <div className="mb-4">
+              <label className={lbl}>Notes <span className="text-slate-300 font-normal">(internal)</span></label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Internal notes for this repair…"
+                rows={2}
+                className={
+                  "w-full px-3 py-2 border border-slate-200 rounded-lg text-[12px] text-slate-900 bg-white " +
+                  "focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none placeholder:text-slate-400"
+                }
+              />
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 bg-brand hover:bg-brand/90 active:scale-[0.99] disabled:opacity-60 text-white font-extrabold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
-            >
-              {submitting ? (
-                <>
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Action buttons */}
+            <div className="space-y-2 pt-3 border-t border-slate-100">
+              {/* Save & Print — primary */}
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e as any, true)}
+                disabled={submitting}
+                className="w-full h-[44px] flex items-center justify-center gap-2 bg-brand hover:bg-brand/90 disabled:opacity-60 text-white font-bold rounded-lg text-[13px] transition-all cursor-pointer"
+              >
+                {submitting && submitAndPrint ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving & Printing...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
-                  Save & Print Invoice
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+                ) : (
+                  <Printer className="w-4 h-4" />
+                )}
+                {submitting && submitAndPrint ? "Saving…" : "Save & Print Invoice"}
+              </button>
+
+              {/* Save only — secondary */}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full h-[40px] flex items-center justify-center bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg text-[13px] hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60 transition-colors cursor-pointer"
+              >
+                {submitting && !submitAndPrint ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : null}
+                {submitting && !submitAndPrint ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {/* ── RESPONSIVE MOBILE FALLBACK (below lg: stacks) ───────────────── */}
+      <style>{`
+        @media (max-width: 900px) {
+          .repair-workspace-grid {
+            grid-template-columns: 1fr !important;
+            height: auto !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ── RepairItemRow sub-component ──────────────────────────────────────────────
-interface RepairItemRowProps {
+// ── RepairItemCard ────────────────────────────────────────────────────────────
+interface RepairItemCardProps {
   item: RepairItem;
   idx: number;
-  templates: any[];
-  canRemove: boolean;
+  isOnly: boolean;
   onUpdate: (patch: Partial<RepairItem>) => void;
-  onApplyTemplate: (templateId: string) => void;
   onRemove: () => void;
 }
 
-function RepairItemRow({
-  item,
-  idx,
-  templates,
-  canRemove,
-  onUpdate,
-  onApplyTemplate,
-  onRemove,
-}: RepairItemRowProps) {
-  const [showWarranty, setShowWarranty] = useState(false);
-  const hasWarranty = item.warranty_days.trim() !== "" || item.warranty_policy.trim() !== "";
-
+function RepairItemCard({ item, idx, isOnly, onUpdate, onRemove }: RepairItemCardProps) {
   return (
-    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2.5">
-      {/* Row 1: Description — searchable combobox */}
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <SearchableCombobox
-            value={item.description}
-            onChange={(val) => onUpdate({ description: val })}
-            options={REPAIR_TYPES}
-            placeholder={`Repair item ${idx + 1} — e.g. Screen Replacement`}
-          />
-        </div>
-        {/* Remove item */}
-        {canRemove && (
+    <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-[0_1px_2px_rgba(0,0,0,.04)]">
+      {/* Card header: label + Remove */}
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          Repair {idx + 1}
+        </span>
+        {!isOnly && (
           <button
             type="button"
             onClick={onRemove}
-            className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer shrink-0 mt-0.5"
-            title="Remove item"
+            className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
+            Remove
           </button>
         )}
       </div>
 
-      {/* Row 2: Price + Warranty toggle */}
-      <div className="flex items-center gap-2">
-        {/* Price */}
-        <div className="relative flex-1">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold pointer-events-none">
-            £
-          </span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={item.price}
-            onChange={(e) => onUpdate({ price: e.target.value })}
-            placeholder="0.00"
-            className="w-full pl-6 pr-2 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 text-right"
-          />
-        </div>
-
-        {/* Warranty expand toggle */}
-        <button
-          type="button"
-          onClick={() => setShowWarranty((v) => !v)}
-          title="Warranty options"
-          className={`flex items-center gap-1 px-2.5 py-2 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shrink-0 ${
-            hasWarranty
-              ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400"
-              : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-400 hover:border-slate-400"
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          {hasWarranty ? (item.warranty_days ? `${item.warranty_days}d` : "Policy") : "Warranty"}
-          {showWarranty ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
+      {/* Repair / Work */}
+      <div className="mb-2.5">
+        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Repair / Work <span className="text-red-500">*</span>
+        </label>
+        <SearchableCombobox
+          value={item.description}
+          onChange={(val) => onUpdate({ description: val })}
+          options={REPAIR_TYPES}
+          placeholder={`e.g. Screen Replacement`}
+        />
       </div>
 
-      {/* Row 3: Warranty panel (expandable) */}
-      {showWarranty && (
-        <div className="pt-1 space-y-2 border-t border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1 duration-100">
-          {/* Template selector */}
-          {templates.length > 0 && (
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                Warranty Template <span className="font-normal">(optional starting point)</span>
-              </label>
-              <select
-                value={item.template_id}
-                onChange={(e) => onApplyTemplate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none focus:border-brand cursor-pointer"
-              >
-                <option value="">— None / Manual entry —</option>
-                {templates.map((t: any) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.default_days} days)
-                  </option>
-                ))}
-              </select>
-              {item.template_id && (
-                <p className="text-[10px] text-slate-400 mt-0.5 ml-1">
-                  Template copied — edit freely. Original template is unchanged.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Warranty Days — blank = Not Specified */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                Warranty Days
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  value={item.warranty_days}
-                  onChange={(e) => onUpdate({ warranty_days: e.target.value, template_id: "" })}
-                  placeholder="—"
-                  className="w-20 px-2 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none focus:border-brand text-center"
-                />
-                <span className="text-xs text-slate-500 font-medium">days</span>
-                {!item.warranty_days && (
-                  <span className="text-[10px] text-slate-400 italic">
-                    optional — leave blank for Not Specified
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Warranty Policy Text */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 mb-1">
-              Warranty Policy <span className="font-normal">(optional)</span>
-            </label>
-            <textarea
-              value={item.warranty_policy}
-              onChange={(e) => onUpdate({ warranty_policy: e.target.value, template_id: "" })}
-              placeholder="e.g. Covers replacement screen. Physical damage excluded."
-              rows={2}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-[11px] text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none placeholder:text-slate-400 leading-relaxed"
+      {/* Price + Warranty Days — same row */}
+      <div className="grid grid-cols-2 gap-3 mb-2.5">
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+            Price <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[13px] font-semibold pointer-events-none">
+              £
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={item.price}
+              onChange={(e) => onUpdate({ price: e.target.value })}
+              placeholder="0.00"
+              className={
+                "w-full pl-6 pr-2 h-[38px] border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 bg-white " +
+                "focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 text-right"
+              }
             />
           </div>
         </div>
-      )}
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+            Warranty
+          </label>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min="0"
+              value={item.warranty_days}
+              onChange={(e) => onUpdate({ warranty_days: e.target.value })}
+              placeholder="—"
+              className={
+                "w-20 h-[38px] px-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-900 bg-white " +
+                "focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 text-center"
+              }
+            />
+            <span className="text-[12px] text-slate-500 font-medium whitespace-nowrap">
+              {item.warranty_days === ""
+                ? "days — optional"
+                : item.warranty_days === "0"
+                ? "days (none)"
+                : "days"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Warranty / Repair Terms */}
+      <div>
+        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Warranty / Repair Terms
+        </label>
+        <textarea
+          value={item.warranty_policy}
+          onChange={(e) => onUpdate({ warranty_policy: e.target.value })}
+          placeholder="Describe warranty coverage for this repair…"
+          rows={2}
+          className={
+            "w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] text-slate-900 bg-white " +
+            "focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none placeholder:text-slate-400 leading-relaxed"
+          }
+        />
+      </div>
     </div>
   );
 }

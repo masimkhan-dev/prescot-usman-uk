@@ -30,6 +30,15 @@ export const getReports = createServerFn({ method: "GET" })
       .lte("trade_date", toDate)
       .order("trade_date", { ascending: true });
 
+    // Daily closing sales entries (Authoritative turnover source — non-void only)
+    const { data: dailyClosingRows } = await context.supabase
+      .from("daily_sales")
+      .select("*")
+      .gte("entry_date", fromDate)
+      .lte("entry_date", toDate)
+      .eq("is_void", false)
+      .order("entry_date", { ascending: true });
+
     // COGS for range
     const { data: cogsRows } = await context.supabase
       .from("v_cogs_by_period")
@@ -98,6 +107,22 @@ export const getReports = createServerFn({ method: "GET" })
       (s, r) => s + (Number(r.unknown_cost_revenue_pence) || 0),
       0,
     );
+    // Authoritative daily closing sales totals (Prescot turnover source: Cash + Card + Bank)
+    const closingCashPence = (dailyClosingRows ?? []).reduce(
+      (s, r) => s + Math.round(Number(r.cash_amount || 0) * 100),
+      0,
+    );
+    const closingCardPence = (dailyClosingRows ?? []).reduce(
+      (s, r) => s + Math.round(Number(r.card_amount || 0) * 100),
+      0,
+    );
+    const closingBankPence = (dailyClosingRows ?? []).reduce(
+      (s, r) => s + Math.round(Number(r.bank_amount || 0) * 100),
+      0,
+    );
+    const closingTotalSalesPence = closingCashPence + closingCardPence + closingBankPence;
+    const closingNetProfitPence = closingTotalSalesPence - expensesTotalPence;
+
     const isMarginPending = unknownCostItemsCount > 0;
 
     // Phone buy/sell summary — informational breakdown only.
@@ -154,6 +179,26 @@ export const getReports = createServerFn({ method: "GET" })
         direct_sales_unknown_cost_count: 0,
         direct_sales_unknown_cost_revenue_pence: 0,
         is_margin_pending: false,
+      },
+      // Authoritative Prescot Daily Sales Closing
+      dailyClosing: {
+        hasEntries: (dailyClosingRows ?? []).length > 0,
+        cashPence: closingCashPence,
+        cardPence: closingCardPence,
+        bankPence: closingBankPence,
+        totalSalesPence: closingTotalSalesPence,
+        expensesTotalPence,
+        netProfitPence: closingNetProfitPence,
+        entries: (dailyClosingRows ?? []).map((r) => ({
+          id: r.id,
+          entry_date: r.entry_date,
+          staff_name: r.staff_name,
+          cash_amount: Number(r.cash_amount || 0),
+          card_amount: Number(r.card_amount || 0),
+          bank_amount: Number(r.bank_amount || 0),
+          total_amount: Number(r.total_amount || 0),
+          notes: r.notes,
+        })),
       },
     };
   });

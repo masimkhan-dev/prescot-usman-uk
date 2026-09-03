@@ -15,6 +15,7 @@ import {
   Settings as SettingsIcon,
   FileText,
   Smartphone,
+  CalendarCheck,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -26,6 +27,7 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { to: "/dashboard/daily-sales", label: "Daily Sales", icon: CalendarCheck, roles: ["admin", "staff"] },
   { to: "/dashboard/pos", label: "POS Register", icon: ShoppingCart, roles: ["admin", "staff"] },
   { to: "/dashboard/repairs", label: "Repair Invoices", icon: FileText },
   { to: "/dashboard/products", label: "Inventory & Parts", icon: Package },

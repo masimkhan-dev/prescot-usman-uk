@@ -390,31 +390,83 @@ export function RepairA4InvoiceModal({
               </div>
             </div>
 
-            {/* 5. SHORT TERMS AND CONDITIONS SECTION */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[9px] sm:text-[9.5px] leading-snug text-slate-700 space-y-1">
-              <div className="font-extrabold text-slate-900 uppercase tracking-wider text-[10px] border-b border-slate-200 pb-0.5 mb-0.5">
-                TERMS AND CONDITIONS (ALL PHONES/DEVICES TESTED &amp; PAID AT COLLECTION)
-              </div>
-              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 list-decimal list-inside text-slate-600">
-                <li>Not responsible for loss of ANY data. Please backup device prior to repair.</li>
-                <li>
-                  Owner's responsibility to remove SIM &amp; memory cards. Not responsible for loss.
-                </li>
-                <li>
-                  No warranty on LCDs/touchscreens if physical marks, scratches, or cracks occur
-                  after collection.
-                </li>
-                <li>Only repair fault booked in for. Additional faults require separate quote.</li>
-                <li>
-                  Warranty covers replacement parts &amp; workmanship. Water damage voids all
-                  warranty.
-                </li>
-                <li>Collect within 30 days. Devices left &gt;60 days handled per full T&amp;Cs.</li>
-                <li className="col-span-1 sm:col-span-2 text-slate-500 italic">
-                  Ask staff for our full Terms &amp; Conditions.
-                </li>
-              </ol>
-            </div>
+            {/* 5. AFTER-SERVICE NOTE */}
+            {(() => {
+              const rawName = repair.customers?.name?.trim() ?? "";
+              const firstName = rawName.split(/\s+/)[0] || "";
+              const greeting = firstName ? `Dear ${firstName},` : "Dear Customer,";
+
+              // Collect repair items that have warranty_days > 0
+              const warrantyItems: { description: string; days: number; policyText?: string | null }[] = [];
+              if (repair.repair_items && repair.repair_items.length > 0) {
+                for (const item of repair.repair_items) {
+                  const d = Number(item.warranty_days);
+                  if (!isNaN(d) && d > 0) {
+                    warrantyItems.push({
+                      description: item.description,
+                      days: d,
+                      policyText: item.warranty_policy_text,
+                    });
+                  }
+                }
+              } else {
+                // Legacy single-item repair
+                const d = Number(repair.warranty_days);
+                if (!isNaN(d) && d > 0) {
+                  warrantyItems.push({
+                    description: repair.issue || "Repair",
+                    days: d,
+                    policyText: repair.warranty_policy_text,
+                  });
+                }
+              }
+
+              const hasWarranty = warrantyItems.length > 0;
+
+              return (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[9px] sm:text-[9.5px] leading-snug text-slate-700 space-y-1.5">
+                  <div className="font-bold text-slate-900 text-[10px] border-b border-slate-200 pb-1 mb-1.5">
+                    {greeting}
+                  </div>
+
+                  <p className="text-slate-600 leading-relaxed">
+                    Thank you for choosing Prescot Mobiles &amp; Computer Services. We appreciate your business and hope you are completely satisfied with your repair.
+                  </p>
+
+                  <p className="text-slate-600 leading-relaxed">
+                    Please check your device at the time of collection. If you notice any issue related to the completed repair, please contact or visit us and our team will be happy to assist.
+                  </p>
+
+                  {hasWarranty && (
+                    <div className="space-y-1">
+                      {warrantyItems.map((wi, i) => (
+                        <p key={i} className="text-slate-600 leading-relaxed">
+                          {warrantyItems.length > 1 && (
+                            <span className="font-semibold text-slate-700">{wi.description} — </span>
+                          )}
+                          Your repair includes a{" "}
+                          <span className="font-semibold text-slate-800">{wi.days}-day warranty</span>{" "}
+                          covering the parts fitted and workmanship related to this repair.
+                          Physical damage, liquid damage and unrelated faults are not covered.
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-slate-600 leading-relaxed">
+                    Please keep this invoice as your proof of repair.
+                  </p>
+
+                  <p className="text-slate-600 leading-relaxed">
+                    Thank you for choosing Prescot Mobiles &amp; Computer Services. We&apos;re always happy to help.
+                  </p>
+
+                  <p className="text-slate-400 italic">
+                    Full Repair Terms, Warranty &amp; Refund Policy are available from our staff or website.
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* 6. TWO-COLUMN FOOTER: WEBSITE POLICY + GOOGLE REVIEW QR */}
             <div className="pt-2 border-t border-slate-200 flex flex-row items-center justify-between gap-4">

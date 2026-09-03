@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,7 +6,21 @@ import { getReports } from "@/lib/reports.functions";
 import { formatGBP } from "@/lib/utils";
 import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
 import { CardSkeleton } from "@/components/dashboard/TableSkeleton";
-import { AlertCircle, Calendar, BarChart3, RotateCcw, Smartphone } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar,
+  BarChart3,
+  RotateCcw,
+  Smartphone,
+  CalendarCheck,
+  Banknote,
+  CreditCard,
+  Building2,
+  Calculator,
+  Receipt,
+  ArrowRight,
+  TrendingUp,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/reports")({
   component: ReportsPage,
@@ -177,15 +191,240 @@ function ReportsPage() {
         </div>
       </div>
 
-      {/* Notice */}
-      <div className="flex items-center gap-2.5 p-3.5 bg-muted border border-border rounded-xl text-xs text-muted-foreground">
-        <AlertCircle className="w-4 h-4 shrink-0 text-muted-foreground" />
-        <span>
-          <strong className="text-foreground">Operational Summary:</strong> Figures below are
-          calculated from POS register sales, completed repairs, and expense logs. This is an
-          operational performance report, not a statutory general ledger.
-        </span>
+      {/* AUTHORITATIVE TURNOVER SECTION: Prescot Daily Sales Closing & Net Cashflow */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 text-brand" />
+              <h2 className="text-base font-extrabold text-foreground">
+                Daily Sales Closing &amp; Net Cashflow
+              </h2>
+              <span className="px-2 py-0.5 rounded-md bg-brand/10 text-brand text-[10px] font-extrabold uppercase tracking-wide">
+                Authoritative Turnover
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Actual store daily takings (Cash + Card + Bank) less store expenses ({data.fromDate} to {data.toDate}).
+            </p>
+          </div>
+
+          <Link
+            to="/dashboard/daily-sales"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
+          >
+            <span>Record Daily Sales</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {/* 6 Key Closing Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+          {/* Cash Sales */}
+          <div className="db-card p-3.5 space-y-1 border-t-2 border-t-emerald-600">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+              <span>Cash Sales</span>
+              <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <div className="text-lg font-black text-foreground tabular-nums tracking-tight truncate">
+              {formatGBP((data.dailyClosing?.cashPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Drawer takings</div>
+          </div>
+
+          {/* Card Sales */}
+          <div className="db-card p-3.5 space-y-1 border-t-2 border-t-blue-600">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+              <span>Card Sales</span>
+              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <div className="text-lg font-black text-foreground tabular-nums tracking-tight truncate">
+              {formatGBP((data.dailyClosing?.cardPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Terminal total</div>
+          </div>
+
+          {/* Bank Transfer */}
+          <div className="db-card p-3.5 space-y-1 border-t-2 border-t-purple-600">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+              <span>Bank Transfer</span>
+              <Building2 className="w-3.5 h-3.5 text-purple-600" />
+            </div>
+            <div className="text-lg font-black text-foreground tabular-nums tracking-tight truncate">
+              {formatGBP((data.dailyClosing?.bankPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Direct transfers</div>
+          </div>
+
+          {/* Total Sales */}
+          <div className="db-card p-3.5 space-y-1 border-t-2 border-t-brand bg-brand/5">
+            <div className="text-[10px] font-extrabold text-brand uppercase flex items-center justify-between">
+              <span>Total Sales</span>
+              <Calculator className="w-3.5 h-3.5 text-brand" />
+            </div>
+            <div className="text-lg font-black text-brand tabular-nums tracking-tight truncate">
+              {formatGBP((data.dailyClosing?.totalSalesPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground font-mono">Cash+Card+Bank</div>
+          </div>
+
+          {/* Expenses */}
+          <div className="db-card p-3.5 space-y-1 border-t-2 border-t-rose-600">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+              <span>Expenses</span>
+              <Receipt className="w-3.5 h-3.5 text-rose-600" />
+            </div>
+            <div className="text-lg font-black text-destructive tabular-nums tracking-tight truncate">
+              {formatGBP((data.expensesTotalPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground">Store expenses</div>
+          </div>
+
+          {/* Net (Total Sales - Expenses) */}
+          <div
+            className={`db-card p-3.5 space-y-1 border-t-2 ${
+              (data.dailyClosing?.netProfitPence ?? 0) >= 0
+                ? "border-t-emerald-600 bg-emerald-500/5"
+                : "border-t-destructive bg-destructive/5"
+            }`}
+          >
+            <div className="text-[10px] font-extrabold uppercase flex items-center justify-between">
+              <span
+                className={
+                  (data.dailyClosing?.netProfitPence ?? 0) >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-destructive"
+                }
+              >
+                Net Profit
+              </span>
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
+            <div
+              className={`text-lg font-black tabular-nums tracking-tight truncate ${
+                (data.dailyClosing?.netProfitPence ?? 0) >= 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-destructive"
+              }`}
+            >
+              {formatGBP((data.dailyClosing?.netProfitPence ?? 0) / 100)}
+            </div>
+            <div className="text-[10px] text-muted-foreground font-mono">Sales - Expenses</div>
+          </div>
+        </div>
+
+        {/* Daily Breakdown Table */}
+        {data.dailyClosing?.entries && data.dailyClosing.entries.length > 0 ? (
+          <div className="db-card !p-0 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/80 flex items-center justify-between">
+              <h3 className="text-xs font-extrabold text-foreground">
+                Daily Closing Breakdown Log ({data.dailyClosing.entries.length} day{data.dailyClosing.entries.length > 1 ? "s" : ""})
+              </h3>
+              <span className="text-[11px] text-muted-foreground font-mono">
+                {data.fromDate} ➔ {data.toDate}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="db-table">
+                <thead>
+                  <tr>
+                    <th className="db-th">Date</th>
+                    <th className="db-th">Staff</th>
+                    <th className="db-th text-right">Cash</th>
+                    <th className="db-th text-right">Card</th>
+                    <th className="db-th text-right">Bank Transfer</th>
+                    <th className="db-th text-right text-brand">Total Sales</th>
+                    <th className="db-th">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dailyClosing.entries.map((entry) => (
+                    <tr key={entry.id} className="db-tr-hover">
+                      <td className="db-td font-extrabold text-foreground whitespace-nowrap">
+                        {entry.entry_date}
+                      </td>
+                      <td className="db-td font-medium text-muted-foreground whitespace-nowrap">
+                        {entry.staff_name}
+                      </td>
+                      <td className="db-td text-right font-mono tabular-nums text-foreground">
+                        {formatGBP(entry.cash_amount)}
+                      </td>
+                      <td className="db-td text-right font-mono tabular-nums text-foreground">
+                        {formatGBP(entry.card_amount)}
+                      </td>
+                      <td className="db-td text-right font-mono tabular-nums text-foreground">
+                        {formatGBP(entry.bank_amount)}
+                      </td>
+                      <td className="db-td text-right font-mono font-black tabular-nums text-brand">
+                        {formatGBP(entry.total_amount)}
+                      </td>
+                      <td className="db-td text-xs text-muted-foreground max-w-xs truncate">
+                        {entry.notes || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Summary Totals Row */}
+                  <tr className="bg-muted/40 font-extrabold border-t-2 border-border">
+                    <td className="db-td text-foreground" colSpan={2}>
+                      Total for Selected Period ({data.dailyClosing.entries.length} recorded day{data.dailyClosing.entries.length > 1 ? "s" : ""})
+                    </td>
+                    <td className="db-td text-right font-mono tabular-nums text-foreground">
+                      {formatGBP((data.dailyClosing.cashPence ?? 0) / 100)}
+                    </td>
+                    <td className="db-td text-right font-mono tabular-nums text-foreground">
+                      {formatGBP((data.dailyClosing.cardPence ?? 0) / 100)}
+                    </td>
+                    <td className="db-td text-right font-mono tabular-nums text-foreground">
+                      {formatGBP((data.dailyClosing.bankPence ?? 0) / 100)}
+                    </td>
+                    <td className="db-td text-right font-mono font-black tabular-nums text-brand">
+                      {formatGBP((data.dailyClosing.totalSalesPence ?? 0) / 100)}
+                    </td>
+                    <td className="db-td text-xs text-muted-foreground">
+                      Net: {formatGBP((data.dailyClosing.netProfitPence ?? 0) / 100)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-muted/40 border border-border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-muted-foreground">
+            <span>
+              No daily closing records found for <strong>{data.fromDate}</strong> to <strong>{data.toDate}</strong>.
+            </span>
+            <Link
+              to="/dashboard/daily-sales"
+              className="px-3 py-1.5 rounded-lg bg-brand text-white font-bold text-xs hover:bg-brand/90 transition-colors shrink-0 inline-flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <CalendarCheck className="w-3.5 h-3.5" />
+              <span>Enter Daily Sales Closing</span>
+            </Link>
+          </div>
+        )}
       </div>
+
+      {/* OPERATIONAL RECORDS SECTION: Invoices, Repairs & POS Reference (Kept Separate) */}
+      <div className="space-y-4 pt-6 border-t border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+              Operational Invoices &amp; POS Register Reference (Records Only)
+            </h3>
+          </div>
+          <span className="text-[11px] text-muted-foreground italic">
+            Invoices &amp; repairs are kept separate from authoritative daily sales turnover.
+          </span>
+        </div>
+
+        {/* Notice */}
+        <div className="flex items-center gap-2.5 p-3.5 bg-muted/50 border border-border rounded-xl text-xs text-muted-foreground">
+          <AlertCircle className="w-4 h-4 shrink-0 text-muted-foreground" />
+          <span>
+            <strong className="text-foreground">Operational Reference:</strong> Figures below reflect individual POS ticket checkouts, completed repair invoices, and inventory logs.
+          </span>
+        </div>
 
       {/* P&L Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
@@ -354,6 +593,7 @@ function ReportsPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

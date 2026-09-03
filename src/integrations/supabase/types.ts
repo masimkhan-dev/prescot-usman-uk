@@ -419,6 +419,24 @@ type ExpenseRow = {
   created_at: string;
 };
 
+export type DailySaleRow = {
+  id: string;
+  entry_date: string;
+  staff_name: string;
+  cash_amount: number;
+  card_amount: number;
+  bank_amount: number;
+  total_amount: number;
+  notes: string | null;
+  is_void: boolean;
+  void_reason: string | null;
+  void_at: string | null;
+  void_by: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type AuditEventRow = {
   id: string;
   actor_id: string | null;
@@ -727,6 +745,7 @@ export type Database = {
         ]
       >;
       expenses: Table<ExpenseRow>;
+      daily_sales: Table<DailySaleRow>;
       audit_events: Table<AuditEventRow>;
       booking_enquiries: Table<BookingEnquiryRow>;
     };

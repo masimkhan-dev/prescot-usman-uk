@@ -33,6 +33,7 @@ import { Route as WarrantyRouteImport } from './routes/warranty'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard.index'
 import { Route as AuthenticatedDashboardCustomersRouteImport } from './routes/_authenticated/dashboard.customers'
+import { Route as AuthenticatedDashboardDailySalesRouteImport } from './routes/_authenticated/dashboard.daily-sales'
 import { Route as AuthenticatedDashboardExpensesRouteImport } from './routes/_authenticated/dashboard.expenses'
 import { Route as AuthenticatedDashboardPhoneBuySellRouteImport } from './routes/_authenticated/dashboard.phone-buy-sell'
 import { Route as AuthenticatedDashboardPosRouteImport } from './routes/_authenticated/dashboard.pos'
@@ -170,6 +171,12 @@ const AuthenticatedDashboardCustomersRoute =
     path: '/customers',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedDashboardDailySalesRoute =
+  AuthenticatedDashboardDailySalesRouteImport.update({
+    id: '/daily-sales',
+    path: '/daily-sales',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 const AuthenticatedDashboardExpensesRoute =
   AuthenticatedDashboardExpensesRouteImport.update({
     id: '/expenses',
@@ -260,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/warranty': typeof WarrantyRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
+  '/dashboard/daily-sales': typeof AuthenticatedDashboardDailySalesRoute
   '/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
   '/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/dashboard/pos': typeof AuthenticatedDashboardPosRoute
@@ -295,6 +303,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/warranty': typeof WarrantyRoute
   '/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
+  '/dashboard/daily-sales': typeof AuthenticatedDashboardDailySalesRoute
   '/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
   '/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/dashboard/pos': typeof AuthenticatedDashboardPosRoute
@@ -333,6 +342,7 @@ export interface FileRoutesById {
   '/warranty': typeof WarrantyRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_authenticated/dashboard/customers': typeof AuthenticatedDashboardCustomersRoute
+  '/_authenticated/dashboard/daily-sales': typeof AuthenticatedDashboardDailySalesRoute
   '/_authenticated/dashboard/expenses': typeof AuthenticatedDashboardExpensesRoute
   '/_authenticated/dashboard/phone-buy-sell': typeof AuthenticatedDashboardPhoneBuySellRoute
   '/_authenticated/dashboard/pos': typeof AuthenticatedDashboardPosRoute
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/warranty'
     | '/dashboard'
     | '/dashboard/customers'
+    | '/dashboard/daily-sales'
     | '/dashboard/expenses'
     | '/dashboard/phone-buy-sell'
     | '/dashboard/pos'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/warranty'
     | '/dashboard/customers'
+    | '/dashboard/daily-sales'
     | '/dashboard/expenses'
     | '/dashboard/phone-buy-sell'
     | '/dashboard/pos'
@@ -443,6 +455,7 @@ export interface FileRouteTypes {
     | '/warranty'
     | '/_authenticated/dashboard'
     | '/_authenticated/dashboard/customers'
+    | '/_authenticated/dashboard/daily-sales'
     | '/_authenticated/dashboard/expenses'
     | '/_authenticated/dashboard/phone-buy-sell'
     | '/_authenticated/dashboard/pos'
@@ -651,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardCustomersRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/dashboard/daily-sales': {
+      id: '/_authenticated/dashboard/daily-sales'
+      path: '/daily-sales'
+      fullPath: '/dashboard/daily-sales'
+      preLoaderRoute: typeof AuthenticatedDashboardDailySalesRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
     '/_authenticated/dashboard/expenses': {
       id: '/_authenticated/dashboard/expenses'
       path: '/expenses'
@@ -733,6 +753,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardCustomersRoute: typeof AuthenticatedDashboardCustomersRoute
+  AuthenticatedDashboardDailySalesRoute: typeof AuthenticatedDashboardDailySalesRoute
   AuthenticatedDashboardExpensesRoute: typeof AuthenticatedDashboardExpensesRoute
   AuthenticatedDashboardPhoneBuySellRoute: typeof AuthenticatedDashboardPhoneBuySellRoute
   AuthenticatedDashboardPosRoute: typeof AuthenticatedDashboardPosRoute
@@ -750,6 +771,8 @@ interface AuthenticatedDashboardRouteChildren {
 const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
     AuthenticatedDashboardCustomersRoute: AuthenticatedDashboardCustomersRoute,
+    AuthenticatedDashboardDailySalesRoute:
+      AuthenticatedDashboardDailySalesRoute,
     AuthenticatedDashboardExpensesRoute: AuthenticatedDashboardExpensesRoute,
     AuthenticatedDashboardPhoneBuySellRoute:
       AuthenticatedDashboardPhoneBuySellRoute,

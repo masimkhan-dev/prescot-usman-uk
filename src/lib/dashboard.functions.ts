@@ -74,6 +74,14 @@ export const getDashboardSummary = createServerFn({ method: "GET" })
       0,
     );
 
+    // Today's daily closing entry (Prescot daily turnover — non-void only)
+    const { data: todayDailySale } = await context.supabase
+      .from("daily_sales")
+      .select("*")
+      .eq("entry_date", todayLondon)
+      .eq("is_void", false)
+      .maybeSingle();
+
     return {
       todaySalesPence: salesView?.net_sales_pence ?? 0,
       todayRefundsPence: salesView?.refunds_pence ?? 0,
@@ -83,6 +91,16 @@ export const getDashboardSummary = createServerFn({ method: "GET" })
       todayBankPence: salesView?.bank_pence ?? 0,
       todaySaleCount: salesView?.sale_count ?? 0,
       todayExpensesPence: expensesTotalPence,
+      todayDailySale: todayDailySale
+        ? {
+            cash_amount: Number(todayDailySale.cash_amount || 0),
+            card_amount: Number(todayDailySale.card_amount || 0),
+            bank_amount: Number(todayDailySale.bank_amount || 0),
+            total_amount: Number(todayDailySale.total_amount || 0),
+            staff_name: todayDailySale.staff_name,
+            notes: todayDailySale.notes,
+          }
+        : null,
       pendingRepairs: pendingRepairs ?? 0,
       lowStock: lowStock ?? 0,
       totalStockValuePence,

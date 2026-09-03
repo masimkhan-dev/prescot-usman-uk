@@ -5,7 +5,7 @@ import { DashboardStatCards } from "@/components/dashboard/StatCards";
 import { getDashboardSummary } from "@/lib/dashboard.functions";
 import { formatGBP } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, TrendingUp, Zap } from "lucide-react";
+import { ArrowRight, TrendingUp, Zap, CalendarCheck, CheckCircle2 } from "lucide-react";
 import { PageHelpButton } from "@/components/dashboard/PageHelpButton";
 import { CardSkeleton } from "@/components/dashboard/TableSkeleton";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -70,6 +70,49 @@ function DashboardOverview() {
         />
       </div>
 
+      {/* Today's Daily Closing Banner */}
+      {data.todayDailySale ? (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                Today&apos;s Store Closing Recorded:
+              </span>{" "}
+              <span className="font-black text-foreground tabular-nums">
+                Total {formatGBP(data.todayDailySale.total_amount)}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                (Cash: {formatGBP(data.todayDailySale.cash_amount)} • Card: {formatGBP(data.todayDailySale.card_amount)} • Bank: {formatGBP(data.todayDailySale.bank_amount)})
+              </span>
+            </div>
+          </div>
+          <Link
+            to="/dashboard/daily-sales"
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline inline-flex items-center gap-1"
+          >
+            <span>View / Edit Closing</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-xl bg-gradient-to-r from-brand/10 via-brand/5 to-transparent border border-brand/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <CalendarCheck className="w-4 h-4 text-brand shrink-0" />
+            <span className="text-foreground">
+              <strong>End-of-Day Closing Pending:</strong> Remember to record today&apos;s Cash, Card, and Bank takings before closing the shop.
+            </span>
+          </div>
+          <Link
+            to="/dashboard/daily-sales"
+            className="px-3 py-1 rounded-lg bg-brand text-white font-bold text-xs hover:bg-brand/90 transition-colors shrink-0 inline-flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <span>Enter Daily Closing</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+      )}
+
       <DashboardStatCards
         stats={[
           {
@@ -109,8 +152,14 @@ function DashboardOverview() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2.5">
             <Link
-              to="/dashboard/pos"
+              to="/dashboard/daily-sales"
               className="btn-primary text-center !py-3 !text-xs min-h-[44px]"
+            >
+              Daily Closing
+            </Link>
+            <Link
+              to="/dashboard/pos"
+              className="btn-outline text-center !py-3 !text-xs min-h-[44px]"
             >
               New Sale
             </Link>
@@ -119,12 +168,6 @@ function DashboardOverview() {
               className="btn-dark text-center !py-3 !text-xs min-h-[44px]"
             >
               New Repair
-            </Link>
-            <Link
-              to="/dashboard/products"
-              className="btn-outline text-center !py-3 !text-xs min-h-[44px]"
-            >
-              Add Product
             </Link>
             <Link
               to="/dashboard/expenses"
